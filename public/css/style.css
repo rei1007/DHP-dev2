@@ -1,0 +1,533 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
+:root {
+    /* Colors */
+    --c-bg: #f8fbff;
+    /* ほんのり青味がかった白 */
+    --c-text-main: #2c3e50;
+    --c-text-sub: #546e7a;
+
+    /* Blue Theme */
+    --c-primary: #1e3799;
+    /* Royal Blue */
+    --c-primary-dark: #0c2461;
+    /* Dark Indigo */
+    --c-accent: #4a69bd;
+    /* Lighter Blue */
+    --c-cyan: #38ada9;
+    /* Teal - for highlights */
+
+    /* Education / Notebook */
+    --c-note-line: #d1d8e0;
+    --c-note-margin: #a5b1c2;
+    /* 赤からグレー/青系へ変更 */
+
+    --grad-main: linear-gradient(135deg, #1e3799 0%, #0c2461 100%);
+
+    /* Spacing */
+    --sp-xs: 4px;
+    --sp-sm: 8px;
+    --sp-md: 16px;
+    --sp-lg: 24px;
+    --sp-xl: 40px;
+    --sp-xxl: 80px;
+
+    /* Font */
+    --f-sans: "Zen Kaku Gothic New", sans-serif;
+    --f-serif: "Shippori Mincho", serif;
+    --f-eng: "Outfit", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--f-sans);
+    background-color: var(--c-bg);
+    color: var(--c-text-main);
+    line-height: 1.6;
+    /* Grid Pattern Blueish */
+    background-image:
+        linear-gradient(rgba(30, 55, 153, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(30, 55, 153, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s;
+}
+
+ul {
+    list-style: none;
+}
+
+img,
+video {
+    max-width: 100%;
+    display: block;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+.container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.u-hidden {
+    display: none !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.section-py {
+    padding: var(--sp-xxl) 0;
+    position: relative;
+}
+
+/* Typography */
+.heading-serif {
+    font-family: var(--f-serif);
+    font-weight: 700;
+    color: var(--c-primary-dark);
+}
+
+.text-eng {
+    font-family: var(--f-eng);
+}
+
+/* --- Decor --- */
+.marker {
+    background: linear-gradient(transparent 70%, rgba(56, 173, 169, 0.3) 70%);
+    /* Teal highlight */
+    display: inline;
+    padding: 0 4px;
+}
+
+/* --- Components --- */
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 2rem;
+    border-radius: 100px;
+    font-weight: 700;
+    transition: all 0.3s;
+    font-family: var(--f-eng);
+    letter-spacing: 0.05em;
+}
+
+.btn-primary {
+    background: var(--c-primary);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(30, 55, 153, 0.3);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    background: var(--c-primary-dark);
+    box-shadow: 0 8px 25px rgba(30, 55, 153, 0.4);
+}
+
+.btn-outline {
+    border: 2px solid var(--c-primary);
+    color: var(--c-primary);
+}
+
+.btn-outline:hover {
+    background: var(--c-primary);
+    color: #fff;
+}
+
+/* Notebook Card Blue Theme */
+.card-note {
+    background: #fff;
+    background-image: linear-gradient(#ecf0f1 1px, transparent 1px);
+    background-size: 100% 24px;
+    padding: 24px 24px 24px 40px;
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    border: 1px solid #dfe6e9;
+    transition: transform 0.3s;
+}
+
+.card-note::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 24px;
+    width: 2px;
+    border-left: 2px solid var(--c-accent);
+    /* Blue Margin */
+}
+
+.card-note:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.note-content {
+    background: rgba(255, 255, 255, 0.85);
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Badge */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    font-family: var(--f-eng);
+    border: 1px solid currentColor;
+    background: #fff;
+}
+
+.badge.open {
+    color: #eb2f06;
+    border-color: #eb2f06;
+}
+
+.badge.upcoming {
+    color: var(--c-primary);
+    border-color: var(--c-primary);
+}
+
+.badge.closed {
+    color: #95a5a6;
+    border-color: #95a5a6;
+}
+
+
+/* Header */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    background: rgba(248, 251, 255, 0.95);
+    backdrop-filter: blur(5px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    height: 70px;
+    display: flex;
+    align-items: center;
+}
+
+.header-inner {
+    display: flex;
+    justify-content: space-between;
+}
+
+.nav-desk {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.nav-link {
+    font-weight: 700;
+    font-family: var(--f-eng);
+    color: var(--c-primary);
+    position: relative;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--c-cyan);
+    transition: width 0.3s;
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+
+/* Hero */
+.hero {
+    position: relative;
+    height: 100vh;
+    min-height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    overflow: hidden;
+}
+
+.hero-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* 画面全体にトリミングして表示 */
+    z-index: -2;
+    transform: scale(1.05);
+    /* ブラー端対策 */
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(12, 36, 97, 0.7) 0%, rgba(30, 55, 153, 0.5) 100%);
+    z-index: -1;
+}
+
+.hero-content {
+    text-align: center;
+    z-index: 1;
+}
+
+.hero-surtitle {
+    width: fit-content;
+    font-family: var(--f-eng);
+    letter-spacing: 0.2em;
+    font-size: 1rem;
+    display: block;
+    margin: 0 auto 10px;
+    opacity: 0.9;
+}
+
+.hero-title {
+    font-family: var(--f-serif);
+    font-size: 3.5rem;
+    line-height: 1.2;
+    margin-bottom: 20px;
+    text-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+@media (min-width: 768px) {
+    .hero-title {
+        font-size: 5rem;
+    }
+}
+
+/* Section Header */
+.sec-header {
+    margin-bottom: 50px;
+    text-align: center;
+}
+
+.sec-title-eng {
+    font-family: var(--f-eng);
+    font-size: 3rem;
+    color: var(--c-primary-dark);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.sec-subtitle {
+    color: var(--c-text-sub);
+    margin-top: 5px;
+}
+
+
+/* Tournaments */
+.tour-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 30px;
+}
+
+/* Timeline (Reset to original style) */
+.timeline {
+    position: relative;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    background: #ccdceb;
+    transform: translateX(-50%);
+}
+
+.timeline-item {
+    position: relative;
+    width: 50%;
+    padding: 0 40px;
+    margin-bottom: 50px;
+}
+
+.timeline-item:nth-child(odd) {
+    left: 0;
+    text-align: right;
+}
+
+.timeline-item:nth-child(even) {
+    left: 50%;
+    text-align: left;
+}
+
+.timeline-dot {
+    position: absolute;
+    top: 6px;
+    width: 14px;
+    height: 14px;
+    background: var(--c-primary);
+    border-radius: 50%;
+    z-index: 2;
+}
+
+.timeline-item:nth-child(odd) .timeline-dot {
+    right: -7px;
+}
+
+.timeline-item:nth-child(even) .timeline-dot {
+    left: -7px;
+}
+
+.timeline-date {
+    font-family: var(--f-eng);
+    color: var(--c-primary);
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+@media (max-width: 768px) {
+    .timeline::before {
+        left: 20px;
+    }
+
+    .timeline-item {
+        width: 100%;
+        left: 0 !important;
+        text-align: left !important;
+        padding-left: 50px;
+    }
+
+    .timeline-item:nth-child(odd) .timeline-dot,
+    .timeline-item:nth-child(even) .timeline-dot {
+        left: 13px;
+        right: auto;
+    }
+}
+
+
+/* Footer */
+.footer {
+    background: var(--c-primary-dark);
+    color: #fff;
+    padding: 60px 0;
+    text-align: center;
+}
+/* --- Mobile Menu --- */
+.mob-menu {
+    position: fixed;
+    top: 0; right: -100%; /* 初期状態は右外 */
+    width: 80%; max-width: 300px;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+    z-index: 2000;
+    padding: 80px 30px;
+    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: -5px 0 20px rgba(0,0,0,0.1);
+    display: flex; flex-direction: column; gap: 20px;
+}
+.mob-menu.active {
+    right: 0;
+}
+.mob-menu .nav-link {
+    font-size: 1.5rem;
+    color: var(--c-primary);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding-bottom: 10px;
+    display: block;
+}
+/* Overlay for mobile menu */
+.mob-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 1500;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+}
+.mob-overlay.active {
+    opacity: 1; pointer-events: auto;
+}
+
+/* Mobile Toggle Button Adjustment */
+.mob-toggle {
+    z-index: 2100; /* メニューより上 */
+    position: relative;
+    width: 40px; height: 40px;
+    display: none; /* PC default */
+    align-items: center; justify-content: center;
+    font-size: 1.5rem; color: var(--c-primary);
+}
+@media (max-width: 768px) {
+    .mob-toggle { display: flex; }
+    .nav-desk { display: none; }
+}
+
+
+/* Mobile Header Button (Dashboard) */
+.mob-header-btn {
+    display: none; /* Hide on Desktop */
+    padding: 6px 14px;
+    border: 1px solid var(--c-primary);
+    color: var(--c-primary);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-right: 15px; /* Spacing next to hamburger */
+    white-space: nowrap;
+}
+@media (max-width: 768px) {
+    .mob-header-btn { display: inline-flex; }
+    /* Align header items properly */
+    .header-inner { justify-content: space-between; }
+    /* Right side container for buttons */
+    .header-right { display: flex; align-items: center; }
+}
+
+
+/* Mobile Header Actions Group */
+.mob-header-actions {
+    display: none;
+}
+@media (max-width: 768px) {
+    .mob-header-actions {
+        display: flex;
+        align-items: center;
+    }
+}
+/* Restore alignment */
+.header-inner { align-items: center; }
+
