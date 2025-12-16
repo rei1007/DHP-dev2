@@ -93,37 +93,49 @@ function renderTournaments(year) {
     // カードのHTML生成（indexと同じスタイル）
     let html = '';
     filtered.forEach(t => {
+        const name = t.name || '名称未設定';
         const status = t.status || 'upcoming';
         const eventDate = t.eventDate;
         const rules = t.rules || [];
+        const entryType = t.entryType || 'cross_ok';
         const caster = t.caster || {};
         const commentator = t.commentator || {};
         
-        let badgeClass = 'badge-upcoming';
-        let badgeText = '開催予定';
+        let badgeClass = 'upcoming';
+        let badgeLabel = '開催予定';
         
-        if (status === 'ongoing') {
-            badgeClass = 'badge-ongoing';
-            badgeText = '開催中';
-        } else if (status === 'open') {
-            badgeClass = 'badge-open';
-            badgeText = 'エントリー受付中';
+        if (status === 'open') {
+            badgeClass = 'open';
+            badgeLabel = 'エントリー受付中';
+        } else if (status === 'ongoing') {
+            badgeClass = 'ongoing';
+            badgeLabel = '開催中';
         } else if (status === 'closed') {
-            badgeClass = 'badge-closed';
-            badgeText = '終了';
+            badgeClass = 'closed';
+            badgeLabel = '大会終了';
         }
         
-        let dateHtml = '';
-        if (eventDate) {
+        // Entry Type Text
+        let entryTypeText = 'クロスサークルOK';
+        if (entryType === 'circle_only') entryTypeText = '同一サークル限定';
+        else if (entryType === 'invite') entryTypeText = 'サークル選抜';
+        
+        // Date Formatting - 目立たせる
+        let dateMonth = '';
+        let dateDay = '';
+        let dateTime = '';
+        try {
             const d = new Date(eventDate);
             if (!isNaN(d)) {
-                dateHtml = `<div class="card-meta"><span class="text-eng">${d.getFullYear()}.${('0'+(d.getMonth()+1)).slice(-2)}.${('0'+d.getDate()).slice(-2)}</span></div>`;
+                dateMonth = `${d.getMonth()+1}月`;
+                dateDay = `${d.getDate()}日`;
+                dateTime = `${('0'+d.getHours()).slice(-2)}:${('0'+d.getMinutes()).slice(-2)}`;
             }
-        }
+        } catch(e){}
         
         let rulesHtml = '';
         if (rules.length > 0) {
-            rulesHtml = '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px;">';
+            rulesHtml = '<div class="rule-icons" style="display:flex; gap:6px; margin-top:8px;">';
             rules.forEach(r => {
                 const ruleImageMap = {
                     'ナワバリバトル': 'assets/weapon/ルール_ナワバリバトル.png',
@@ -135,9 +147,9 @@ function renderTournaments(year) {
                 };
                 const imgSrc = ruleImageMap[r] || '';
                 if (imgSrc) {
-                    rulesHtml += `<img src="${imgSrc}" alt="${escapeHtml(r)}" title="${escapeHtml(r)}" style="width:28px; height:28px; object-fit:contain;">`;
+                    rulesHtml += `<img src="${imgSrc}" alt="${escapeHtml(r)}" title="${escapeHtml(r)}" style="width:24px; height:24px; object-fit:contain;">`;
                 } else {
-                    rulesHtml += `<span class="badge" style="font-weight:400; background:#f0f0f0; border:none; color:#555; font-size:0.75rem; padding:2px 6px;">${escapeHtml(r)}</span>`;
+                    rulesHtml += `<span style="font-size:0.75rem; color:#666;">${escapeHtml(r)}</span>`;
                 }
             });
             rulesHtml += '</div>';
@@ -171,14 +183,25 @@ function renderTournaments(year) {
         }
         
         html += `
-        <div class="card-note js-scroll-trigger">
+        <div class="card-note">
             <div class="card-note-inner">
                 <div class="card-note-content">
                     <div class="u-mb-10" style="margin-bottom:8px;">
-                        <span class="badge ${badgeClass}">${badgeText}</span>
+                        <span class="badge ${badgeClass}">${badgeLabel}</span>
                     </div>
-                    ${dateHtml}
-                    <h3 style="margin:10px 0; font-size:1.3rem; font-weight:700; color:var(--c-primary-dark);">${escapeHtml(t.name)}</h3>
+                    <h3 style="margin:0 0 8px; font-size:1.15rem; line-height:1.3;">${escapeHtml(name)}</h3>
+                    
+                    <!-- 目立つ日時表示 -->
+                    <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.3rem; font-weight:700; color:#0c2461;">${dateMonth} ${dateDay}</span>
+                        <span style="font-size:1rem; font-weight:600; color:#1e3799;">${dateTime}</span>
+                    </div>
+                    
+                    <!-- エントリータイプ -->
+                    <div style="font-size:0.8rem; color:#666; margin-bottom:6px;">
+                        参加形式: ${escapeHtml(entryTypeText)}
+                    </div>
+                    
                     ${rulesHtml}
                     ${staffHtml}
                 </div>

@@ -49,7 +49,9 @@ export async function checkOpenEntry() {
                         </div>
                         <div class="floating-header-actions">
                             ${totalCount > 1 ? `<span class="card-counter">${idx + 1}/${totalCount}</span>` : ''}
-                            <button class="floating-minimize-btn" onclick="window.minimizeFloatingEntry(event)" aria-label="最小化">−</button>
+                            <button class="floating-minimize-btn" onclick="window.minimizeFloatingEntry(event)" aria-label="最小化">
+                                <span style="margin-right: 4px;">−</span>最小化
+                            </button>
                         </div>
                     </div>
                     <h3 class="floating-entry-title">${escapeHtml(t.name)}</h3>
