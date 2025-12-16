@@ -103,16 +103,24 @@ function renderTournaments(year) {
         
         let badgeClass = 'upcoming';
         let badgeLabel = '開催予定';
+        let btnLabel = '大会詳細';
+        let btnClass = 'btn-outline';
         
         if (status === 'open') {
             badgeClass = 'open';
             badgeLabel = 'エントリー受付中';
+            btnLabel = '大会情報';
+            btnClass = 'btn-primary';
         } else if (status === 'ongoing') {
             badgeClass = 'ongoing';
             badgeLabel = '開催中';
+            btnLabel = '大会詳細';
+            btnClass = 'btn-primary';
         } else if (status === 'closed') {
             badgeClass = 'closed';
             badgeLabel = '大会終了';
+            btnLabel = '大会結果';
+            btnClass = 'btn-outline';
         }
         
         // Entry Type Text
@@ -204,6 +212,9 @@ function renderTournaments(year) {
                     
                     ${rulesHtml}
                     ${staffHtml}
+                </div>
+                <div class="card-note-action">
+                    <button class="btn ${btnClass} btn-sm" onclick="alert('詳細ページは準備中です')">${btnLabel}</button>
                 </div>
             </div>
         </div>
