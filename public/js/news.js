@@ -83,19 +83,16 @@ function renderNewsList(data, year) {
         const date = n.publishedAt || '----.--.--';
         
         let badgeHtml = '';
-        const type = n.type || 'normal';
+        const badgeOrCategory = n.badge || n.category || 'info';
         
-        if (type === 'tournament') {
+        if (badgeOrCategory === 'tour') {
             badgeHtml = '<span class="badge-news tour">大会情報</span>';
+        } else if (badgeOrCategory === 'recruit') {
+            badgeHtml = '<span class="badge-news recruit">運営募集</span>';
+        } else if (badgeOrCategory === 'important') {
+            badgeHtml = '<span class="badge-news important">重要</span>';
         } else {
-            const b = n.badge || 'info';
-            if (b === 'recruit') {
-                badgeHtml = '<span class="badge-news recruit">運営募集</span>';
-            } else if (b === 'important') {
-                badgeHtml = '<span class="badge-news important">お知らせ</span>';
-            } else {
-                badgeHtml = '<span class="badge-news info">お知らせ</span>';
-            }
+            badgeHtml = '<span class="badge-news info">お知らせ</span>';
         }
 
         let dateStr = date;
@@ -155,10 +152,16 @@ async function initNewsDetail() {
     } catch(e){}
 
     let badgeHtml = '';
-    if (news.type === 'tournament') {
+    const badgeOrCategory = news.badge || news.category || 'info';
+    
+    if (badgeOrCategory === 'tour') {
         badgeHtml = '<span class="badge-news tour">大会情報</span>';
+    } else if (badgeOrCategory === 'recruit') {
+        badgeHtml = '<span class="badge-news recruit">運営募集</span>';
+    } else if (badgeOrCategory === 'important') {
+        badgeHtml = '<span class="badge-news important">重要</span>';
     } else {
-         badgeHtml = '<span class="badge-news info">お知らせ</span>';
+        badgeHtml = '<span class="badge-news info">お知らせ</span>';
     }
 
     // Body content (simulate paragraphs)

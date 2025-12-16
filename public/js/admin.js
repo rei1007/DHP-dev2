@@ -75,16 +75,19 @@ function getNewsBadgeHtml(type, badge) {
     let cls = 'info';
     let label = 'お知らせ';
     
-    if (type === 'tournament') {
+    // badge または category で判定（typeは使用しない）
+    const badgeOrCategory = badge || 'info';
+    
+    if (badgeOrCategory === 'tour') {
         cls = 'tour';
         label = '大会情報';
-    } else if (badge === 'recruit') {
+    } else if (badgeOrCategory === 'recruit') {
         cls = 'recruit';
         label = '運営募集';
-    } else if (badge === 'important') {
+    } else if (badgeOrCategory === 'important') {
         cls = 'important';
         label = '重要';
-    } else if (badge === 'penalty') {
+    } else if (badgeOrCategory === 'penalty') {
         cls = 'important';
         label = 'ペナルティ';
     }
@@ -264,7 +267,7 @@ async function renderNews(container) {
                 <div class="admin-item-card">
                     <div class="admin-item-header">
                         <div style="flex:1;">
-                            <div style="margin-bottom:5px;">${getNewsBadgeHtml(n.type, n.badge)}</div>
+                            <div style="margin-bottom:5px;">${getNewsBadgeHtml(n.type, n.badge || n.category)}</div>
                             <div class="admin-item-title">${n.title}</div>
                         </div>
                     </div>
@@ -798,10 +801,17 @@ function openNewsModal(data = null) {
     
     let currentType = 'info';
     if (data) {
-        if (data.type === 'tournament') currentType = 'tour';
-        else if (data.badge === 'important') currentType = 'important';
-        else if (data.badge === 'recruit') currentType = 'recruit';
-        else currentType = 'info';
+        const badgeOrCategory = data.badge || data.category || 'info';
+        console.log('[openNewsModal] data:', data);
+        console.log('[openNewsModal] badgeOrCategory:', badgeOrCategory);
+        
+        if (data.type === 'tournament' || badgeOrCategory === 'tour') {
+            currentType = 'tour';
+        } else {
+            currentType = badgeOrCategory;  // 'info', 'important', 'recruit'
+        }
+        
+        console.log('[openNewsModal] currentType:', currentType);
     }
 
     container.innerHTML = `
@@ -853,16 +863,22 @@ function openNewsModal(data = null) {
         e.preventDefault();
         const fd = new FormData(e.target);
         const uiType = fd.get('ui_type');
+        
+        console.log('[formNews] uiType from form:', uiType);
+        console.log('[formNews] All form data:', Object.fromEntries(fd.entries()));
+        
         let type = 'normal';
-        let badge = 'info';
+        let badge = uiType || 'info';  // uiTypeがnullの場合のフォールバック
         
         if (uiType === 'tour') {
             type = 'tournament';
             badge = 'tour';
-        } else {
+        } else if (uiType) {
             type = 'normal';
-            badge = uiType;
+            badge = uiType;  // 'info', 'important', 'recruit'
         }
+
+        console.log('[formNews] Determined type:', type, 'badge:', badge);
 
         const newItem = {
             id: Number(fd.get('id')),
@@ -873,13 +889,15 @@ function openNewsModal(data = null) {
             badge: badge
         };
         
+        console.log('[formNews] Saving news item:', newItem);
+        
         // Save to Supabase
         saveNews(newItem).then(() => {
             modal.classList.add('u-hidden');
             loadTab('news');
         }).catch(err => {
             console.error('Save error:', err);
-            alert('保存に失敗しました');
+            alert('保存に失敗しました: ' + err.message);
         });
     };
 }

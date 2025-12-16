@@ -251,7 +251,9 @@ export async function getNews() {
             id: item.id,
             title: item.title,
             category: item.category,
+            badge: item.category,  // admin.jsでの互換性のためbadgeとしても返す
             content: item.content,
+            body: item.content,    // admin.jsでの互換性のためbodyとしても返す
             publishedAt: item.published_at
         }));
     } catch (e) {
@@ -269,14 +271,16 @@ export async function saveNews(newsData) {
         throw new Error('Supabase client not initialized');
     }
 
-    const { id, ...rest } = newsData;
+    const { id, type, ...rest } = newsData;  // typeフィールドを除外
     
     const dbData = {
         title: rest.title,
-        category: rest.category,
-        content: rest.content,
+        category: rest.badge || rest.category || 'info',  // badge または category
+        content: rest.body || rest.content || '',          // body または content
         published_at: rest.publishedAt
     };
+    
+    console.log('[saveNews] Saving data:', { id, dbData });
     
     // Same logic as tournaments
     let shouldUpdate = false;
@@ -290,21 +294,29 @@ export async function saveNews(newsData) {
     }
     
     if (shouldUpdate) {
+        console.log('[saveNews] Updating existing news');
         const { data, error } = await supabaseClient
             .from('news')
             .update(dbData)
             .eq('id', id)
             .select()
             .single();
-        if (error) throw error;
+        if (error) {
+            console.error('[saveNews] Update error:', error);
+            throw error;
+        }
         return { ...newsData, id: data.id };
     } else {
+        console.log('[saveNews] Inserting new news');
         const { data, error } = await supabaseClient
             .from('news')
             .insert([dbData])
             .select()
             .single();
-        if (error) throw error;
+        if (error) {
+            console.error('[saveNews] Insert error:', error);
+            throw error;
+        }
         return { ...newsData, id: data.id };
     }
 }

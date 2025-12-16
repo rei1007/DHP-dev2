@@ -94,6 +94,8 @@ a {
 }
 
 .logo {
+    display: flex;
+    align-items: center;
     font-size: 1.8rem;
     font-family: var(--f-serif);
     font-weight: 900;
