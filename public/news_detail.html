@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お知らせ | DHP</title>
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/news.css">
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+</head>
+
+<body>
+    <!-- Loading Screen (Standard) -->
+    <div class="loading-screen">
+        <div class="loading-ink"></div>
+    </div>
+
+    <!-- Header (Link to List) -->
+    <header class="site-header">
+        <div class="container header-inner">
+            <a href="index.html" class="logo">
+                <img src="assets/大学杯ロゴ.png" alt="大学杯" style="height:45px;"
+                    onerror="this.onerror=null; this.parentNode.innerHTML='<span class=\'heading-serif\' style=\'font-size:1.5rem; color:var(--c-primary);\'>大学杯</span>'">
+            </a>
+            <nav class="nav-sub">
+                <a href="index.html" class="nav-link-sub">TOP</a>
+                <a href="news.html" class="nav-link-sub">お知らせ一覧</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main style="padding-top: 100px; padding-bottom: 80px; min-height: 80vh;">
+        <div class="container" style="max-width:800px;">
+            <article id="newsDetailContainer" class="glass-panel" style="padding:40px;">
+                <!-- Loaded via JS -->
+                <div style="text-align:center; padding:40px; color:#aaa;">読み込み中...</div>
+            </article>
+
+            <!-- Share Buttons -->
+            <div style="margin-top:40px; text-align:center;">
+                <h3
+                    style="font-size:1rem; color:#666; margin-bottom:15px; font-family:var(--f-eng); letter-spacing:1px;">
+                    SHARE</h3>
+                <div style="display:flex; justify-content:center; gap:15px;" id="shareButtons">
+                    <!-- JS Injected -->
+                </div>
+            </div>
+
+            <div style="margin-top:50px; text-align:center;">
+                <a href="news.html" class="btn btn-outline">一覧に戻る</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="heading-serif" style="font-size:1.5rem; font-weight:700; margin-bottom:10px; color:#fff;">大学杯
+            </div>
+            <p class="text-eng" style="margin-bottom:20px;">INKOLLEGE STUDENT CUP</p>
+            <div class="footer-links" style="display:flex; justify-content:center; gap:20px;">
+                <a href="#" style="opacity:0.8;">利用規約</a>
+                <a href="https://x.com/daigakuhai_op" target="_blank" style="opacity:0.8;">運営X アカウント</a>
+                <a href="admin.html" target="_blank" style="opacity:0.8;">運営ダッシュボード</a>
+            </div>
+            <p style="margin-top:30px; font-size:0.8rem; opacity:0.6;">&copy; 2025 Inkollege Student Cup. All Rights
+                Reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script type="module" src="js/news.js"></script>
+    <script type="module">
+        import { AnimationManager } from './js/animations.js';
+        const anim = new AnimationManager();
+        anim.initLoading();
+        // No hero play
+    </script>
+</body>
+
+</html>

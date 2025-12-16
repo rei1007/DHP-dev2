@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン | 大学杯</title>
+    <link rel="stylesheet" href="css/common.css">
+    <style>
+        body {
+            background: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(30, 55, 153, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(246, 185, 59, 0.05) 0%, transparent 20%);
+        }
+
+        .login-card {
+            background: #fff;
+            width: 100%;
+            max-width: 400px;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .login-logo {
+            width: 80px;
+            margin-bottom: 20px;
+        }
+
+        .login-title {
+            font-family: var(--f-serif);
+            font-size: 1.5rem;
+            color: var(--c-primary-dark);
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 700;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+            font-family: var(--f-sans);
+        }
+
+        .input-field:focus {
+            border-color: var(--c-primary);
+            box-shadow: 0 0 0 3px rgba(30, 55, 153, 0.1);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: var(--c-primary);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            background: var(--c-primary-dark);
+        }
+
+        .btn-login:active {
+            transform: scale(0.98);
+        }
+
+        .login-footer {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #999;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-card">
+        <a href="index.html">
+            <img src="assets/大学杯ロゴ.png" alt="Logo" class="login-logo"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+            <div style="display:none; margin-bottom:20px; font-weight:700; font-size:1.5rem; color:var(--c-primary);">
+                大学杯</div>
+        </a>
+
+        <h1 class="login-title">運営ログイン</h1>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <label class="input-label">ID</label>
+                <input type="text" class="input-field" placeholder="admin" required autofocus>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Password</label>
+                <input type="password" class="input-field" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn-login">ログイン</button>
+        </form>
+
+        <div class="login-footer">
+            &copy; Inkollege Student Cup
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            // Mock Login
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Authenticating...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                window.location.href = 'admin.html';
+            }, 800);
+        });
+    </script>
+</body>
+
+</html>

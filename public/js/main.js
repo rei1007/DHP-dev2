@@ -1,156 +1,285 @@
 
-import { supabase, escapeHtml } from "./common.js";
+import { escapeHtml } from "./common.js";
+
+// ==========================================
+// Mock Data Utilities
+// ==========================================
+// const KEY_TOUR = 'dhp_tournaments';
+// const KEY_NEWS = 'dhp_news';
+// Use common.js if imported, but for now duplicate reference or remove if common.js is solid.
+// But wait, main.js previously had them. User asked to export them from common.js.
+// I should update main.js to import them.
+import { getLocalData, setLocalData, KEY_TOUR, KEY_NEWS } from "./common.js";
+
+// Inject Sample Data if empty (logic moved or kept here? kept here for init)
+function initSampleData() {
+    if (getLocalData(KEY_TOUR).length === 0) {
+        setLocalData(KEY_TOUR, [
+            { id: 1, name: 'Sample Tournament Cup', eventDate: '2025-01-20 19:00', status: 'upcoming', rules: ['ナワバリバトル'] },
+            { id: 2, name: 'DHP Weekly #1', eventDate: '2024-12-10 20:00', status: 'closed', rules: ['エリア', 'ヤグラ'] },
+            { id: 3, name: 'Sample Open Cup', eventDate: '2025-02-10 20:00', status: 'open', entryEnd: '2025-02-09', rules: ['ホコ'] },
+            { id: 4, name: 'Sample Open Cup 2', eventDate: '2025-02-15 20:00', status: 'open', entryEnd: '2025-02-14', rules: ['アサリ'] }
+        ]);
+    }
+    if (getLocalData(KEY_NEWS).length === 0) {
+        setLocalData(KEY_NEWS, [
+            { id: 1, title: 'サイトをリニューアルしました', publishedAt: '2024-12-15', badge: 'info', type: 'normal', body: 'DHPの公式サイトをリニューアルしました。' },
+            { id: 2, title: '第1回 大会エントリー開始', publishedAt: '2025-01-05', badge: 'recruit', type: 'normal', body: '皆様の参加をお待ちしております。' }
+        ]);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
+    initSampleData();
     loadTournaments();
     loadNews();
+    checkOpenEntry();
 });
 
+// --- Floating Entry Button Logic ---
+function checkOpenEntry() {
+    const tours = getLocalData(KEY_TOUR);
+    const openTours = tours.filter(t => t.status === 'open');
+    const floatBtn = document.getElementById('floatingEntryBtn');
+    
+    if (openTours.length > 0 && floatBtn) {
+        // Show primary (first)
+        const top = openTours[0];
+        const dateInfo = getFormatEntryDate(top);
+
+        // Expanded List Generation
+        let expandToggleHtml = '';
+        let listHtml = '';
+        
+        if (openTours.length > 1) {
+            const count = openTours.length - 1;
+            expandToggleHtml = `<div class="entry-expand-toggle" id="btnExpandEntry">▼ 他${count}件</div>`;
+            
+            listHtml = '<div class="entry-list-container u-hidden" id="entryExpandedList">';
+            openTours.forEach((t, idx) => {
+                if(idx===0) return; // skip top
+                listHtml += `
+                <div class="entry-item-row">
+                    <div style="flex:1;">
+                         <div style="font-size:0.9rem; font-weight:700; color:#0c2461;">${escapeHtml(t.name)}</div>
+                         <div style="font-size:0.75rem; color:#666;">${escapeHtml(getFormatEntryDate(t))}</div>
+                    </div>
+                    <a href="#latest" class="entry-notif-btn" style="padding:4px 12px; font-size:0.75rem;">確認</a>
+                </div>
+                `;
+            });
+            listHtml += '</div>';
+        }
+
+        floatBtn.innerHTML = `
+            <div class="entry-notif-card">
+                <div class="btn-minimize-entry" id="btnMinEntry">×</div>
+                <div class="entry-notif-content">
+                    <div class="entry-notif-title">${escapeHtml(top.name)}</div>
+                    <div class="entry-notif-date">
+                        <span style="display:inline-block; width:8px; height:8px; background:#eb2f06; border-radius:50%;"></span>
+                        ${escapeHtml(dateInfo)}
+                    </div>
+                </div>
+                <div>
+                    <a href="#latest" class="entry-notif-btn">確認</a>
+                </div>
+            </div>
+            ${expandToggleHtml}
+            ${listHtml}
+            <div class="btn-restore-entry" id="btnRestoreEntry">エントリー受付中</div>
+        `;
+        floatBtn.style.display = 'flex';
+        
+        // Event for expand
+        const btnExp = document.getElementById('btnExpandEntry');
+        if(btnExp) {
+            btnExp.addEventListener('click', () => {
+                const list = document.getElementById('entryExpandedList');
+                if(list.classList.contains('u-hidden')) {
+                     list.classList.remove('u-hidden');
+                     btnExp.innerText = `▲ 閉じる`;
+                } else {
+                    list.classList.add('u-hidden');
+                    const count = openTours.length - 1;
+                    btnExp.innerText = `▼ 他${count}件`;
+                }
+            });
+        }
+        
+        // Event for minimize
+        document.getElementById('btnMinEntry').addEventListener('click', () => {
+            floatBtn.classList.add('minimized');
+        });
+        // Event for restore
+        document.getElementById('btnRestoreEntry').addEventListener('click', () => {
+            floatBtn.classList.remove('minimized');
+        });
+    } else if (floatBtn) {
+        floatBtn.style.display = 'none';
+    }
+}
+function getFormatEntryDate(t) {
+    if(!t.entryPeriod || !t.entryPeriod.end) return 'エントリー受付中';
+    const end = new Date(t.entryPeriod.end);
+    if(isNaN(end)) return 'エントリー受付中';
+    return `~ ${end.getMonth()+1}/${end.getDate()} ${('0'+end.getHours()).slice(-2)}:${('0'+end.getMinutes()).slice(-2)} まで`;
+}
+
 // --- Tournaments ---
-async function loadTournaments() {
+function loadTournaments() {
     const list = document.getElementById('tourList');
     if (!list) return;
 
     try {
-        const { data, error } = await supabase
-            .from('tournaments')
-            .select('*')
-            .order('id', { ascending: false }); // 新しい順
+        const data = getLocalData(KEY_TOUR);
 
-        if (error) throw error;
         if (!data || data.length === 0) {
-            // データがない場合
             list.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#aaa;">現在表示できる大会情報はありません。</div>';
             return;
         }
 
-        let html = '';
-        // ステータスの優先順位: ENTRY OPEN > UPCOMING > CLOSED
-        const statusOrder = { 'open': 1, 'upcoming': 2, 'closed': 3 };
-        
-        // ソート処理: ステータス順 -> 日付の古い順(近い順) or 新しい順
-        // ※ここでは簡易的に元の順序(ID降順)を尊重しつつ、Status優先ソートをかける
+        // Sort: Status priority (ongoing > open > upcoming > closed) + ID desc
+        const statusOrder = { 'ongoing': 0, 'open': 1, 'upcoming': 2, 'closed': 3 };
         data.sort((a, b) => {
-            const sA = statusOrder[a.status] || 99;
-            const sB = statusOrder[b.status] || 99;
+            const sA = statusOrder[a.status] !== undefined ? statusOrder[a.status] : 99;
+            const sB = statusOrder[b.status] !== undefined ? statusOrder[b.status] : 99;
             if (sA !== sB) return sA - sB;
-            return 0; // ID順維持
+            return b.id - a.id;
         });
 
-        // 最大6件表示
         const displayData = data.slice(0, 6);
 
+        let html = '';
         displayData.forEach(t => {
-            // Key Mapping (Snake -> Camel if needed)
             const name = t.name || '名称未設定';
             const status = t.status || 'upcoming';
-            const eventDate = t.eventDate || t.event_date || t.eventdate || '未定';
+            const eventDate = t.eventDate || '未定';
             const rules = t.rules || []; 
-            // rules is array or json string. Assume array based on common usage from previous steps
-            const mainRule = (Array.isArray(rules) && rules.length > 0) ? rules[0] : 'ルール未定';
 
             let badgeClass = 'upcoming';
-            let badgeLabel = 'UPCOMING';
-            if (status === 'open') { badgeClass = 'open'; badgeLabel = 'ENTRY OPEN'; }
-            else if (status === 'closed') { badgeClass = 'closed'; badgeLabel = 'CLOSED'; }
+            let badgeLabel = '開催予定';
+            let btnLabel = '大会詳細'; // Default
+            let btnClass = 'btn-outline';
+            
+            if (status === 'open') { 
+                badgeClass = 'open'; badgeLabel = 'エントリー受付中'; 
+                btnLabel = '大会情報'; btnClass = 'btn-primary';
+            }
+            else if (status === 'ongoing') {
+                badgeClass = 'ongoing'; badgeLabel = '開催中';
+                btnLabel = '大会詳細'; btnClass = 'btn-primary';
+            }
+            else if (status === 'closed') { 
+                badgeClass = 'closed'; badgeLabel = '大会終了'; 
+                btnLabel = '大会結果'; btnClass = 'btn-outline';
+            }
 
-            // Date Formatting
+            // Date Formatting (Always show time)
             let dateStr = eventDate;
             try {
                 const d = new Date(eventDate);
                 if (!isNaN(d)) {
-                    // YYYY.MM.DD (Day) HH:mm
-                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                    const y = d.getFullYear();
-                    const m = ('0' + (d.getMonth()+1)).slice(-2);
-                    const dd = ('0' + d.getDate()).slice(-2);
-                    const w = days[d.getDay()];
-                    const hh = ('0' + d.getHours()).slice(-2);
-                    const mm = ('0' + d.getMinutes()).slice(-2);
-                    dateStr = `${y}.${m}.${dd} (${w})`;
-                    if (status !== 'closed') dateStr += ` ${hh}:${mm}`;
+                    dateStr = `${d.getFullYear()}.${('0'+(d.getMonth()+1)).slice(-2)}.${('0'+d.getDate()).slice(-2)} ${('0'+d.getHours()).slice(-2)}:${('0'+d.getMinutes()).slice(-2)}`;
                 }
-            } catch(e) {}
+            } catch(e){}
+
+            // Rules Icon
+            // Assuming image path convention: assets/icon_rule_{rule}.png or similar
+            // For now just text or simple logic if images available.
+            let rulesHtml = '';
+            if (rules.length > 0) {
+                rulesHtml = '<div class="rule-icons">';
+                rules.forEach(r => {
+                    // map rule name to icon filename if needed
+                    // Simple text fallback or placeholder icons
+                    // User requested "Academic" feel, maybe simple text tags? 
+                    // Let's use generic placeholder icons for now or styled text.
+                    // rulesHtml += `<span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${escapeHtml(r)}</span>`;
+                    
+                    // Attempt image if assets exist. 
+                    // For now, let's use a placeholder img tag with alt.
+                    // rulesHtml += `<img src="assets/rule_icon.png" alt="${r}" class="rule-icon" title="${r}">`;
+                    // Wait, user provided specific rule names in admin. 
+                    // Let's use simple span badges for now to be safe.
+                    rulesHtml += `<span class="badge" style="font-weight:400; background:#f0f0f0; border:none; color:#555;">${escapeHtml(r)}</span>`;
+                });
+                rulesHtml += '</div>';
+            }
 
             html += `
-            <article class="card-note">
-                <div class="note-content">
-                    <span class="badge ${badgeClass}">${badgeLabel}</span>
-                    <h3 class="heading-serif" style="margin:10px 0; font-size:1.4rem;">${escapeHtml(name)}</h3>
-                    <div class="text-eng" style="color:#666; font-size:0.9rem;">
-                        ${escapeHtml(dateStr)}
+            <div class="card-note js-scroll-trigger">
+                <div class="card-note-inner">
+                    <div class="card-note-content">
+                        <div class="u-mb-10">
+                            <span class="badge ${badgeClass}">${badgeLabel}</span>
+                        </div>
+                        <h3 style="margin:0 0 10px; font-size:1.2rem; line-height:1.4;">${escapeHtml(name)}</h3>
+                        <div style="font-size:0.9rem; color:#666; display:flex; align-items:center; gap:5px;">
+                            <span>📅</span> ${escapeHtml(dateStr)}
+                        </div>
+                        ${rulesHtml}
                     </div>
-                    <div style="margin-top:10px; font-size:0.9rem;">
-                        <span class="marker">${escapeHtml(mainRule)}</span>
+                    <div class="card-note-action">
+                         <button class="btn ${btnClass} btn-sm" onclick="alert('詳細ページは準備中です')">${btnLabel}</button>
                     </div>
                 </div>
-            </article>
+            </div>
             `;
         });
-
         list.innerHTML = html;
 
     } catch (e) {
-        console.error("Tournament Load Error:", e);
-        // エラー時は静的モックを残すか、エラー表示するか。
-        // 現在はモックがあるので、エラーならコンソールのみに出してUIはいじらないのも手だが、
-        // 開発中はエラーが見えたほうがいいので書き換える。
-        list.innerHTML = '<div style="color:red; text-align:center;">データの読み込みに失敗しました</div>';
+        console.error(e);
+        list.innerHTML = 'Error loading tournaments.';
     }
 }
 
+
 // --- News ---
-async function loadNews() {
+function loadNews() {
     const list = document.getElementById('newsList');
     if (!list) return;
 
-    try {
-        const { data, error } = await supabase
-            .from('news')
-            .select('*')
-            .order('publishedAt', { ascending: false })
-            .limit(5);
+    const data = getLocalData(KEY_NEWS);
+    if (!data || data.length === 0) {
+        list.innerHTML = '<li style="padding:10px; color:#aaa;">お知らせはありません</li>';
+        return;
+    }
 
-        if (error) throw error;
-        if (!data || data.length === 0) {
-            list.innerHTML = '<li style="padding:15px; text-align:center; color:#aaa;">お知らせはありません</li>';
-            return;
+    // Sort Date Desc
+    data.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    const displayData = data.slice(0, 3); // Top 3
+
+    let html = '';
+    displayData.forEach(n => {
+        let badgeHtml = '';
+        const type = n.type || 'normal';
+        
+        if (type === 'tournament') {
+            badgeHtml = '<span class="badge-news tour">大会情報</span>';
+        } else {
+            const b = n.badge || 'info';
+            if (b === 'recruit') {
+                badgeHtml = '<span class="badge-news recruit">運営募集</span>';
+            } else if (b === 'important') {
+                badgeHtml = '<span class="badge-news important">重要</span>';
+            } else {
+                badgeHtml = '<span class="badge-news info">お知らせ</span>';
+            }
         }
 
-        let html = '';
-        data.forEach(n => {
-            const title = n.title;
-            const date = n.publishedAt || n.publishedat || '----.--.--';
-            const badge = n.badge || 'info'; // info, important, recruit
-            
-            // Badge Style
-            let badgeClass = '';
-            let badgeLabel = badge.toUpperCase();
-            if (badge === 'recruit') { badgeClass = 'open'; badgeLabel = 'Recruit'; }
-            if (badge === 'important') { badgeClass = 'upcoming'; badgeLabel = 'Important'; }
-
-            // Date Format
-            let dateStr = date;
-            try {
-                const d = new Date(date);
-                if (!isNaN(d)) {
-                    dateStr = `${d.getFullYear()}.${('0'+(d.getMonth()+1)).slice(-2)}.${('0'+d.getDate()).slice(-2)}`;
-                }
-            } catch(e) {}
-
-            html += `
-            <li style="padding:15px; border-bottom:1px solid #eee; display:flex; gap:10px; align-items:baseline;">
-                <span class="text-eng" style="color:#aaa; font-size:0.85rem; min-width:80px;">${escapeHtml(dateStr)}</span>
-                <span class="badge ${badgeClass}" style="padding:2px 6px;">${escapeHtml(badgeLabel)}</span>
-                <a href="news.html?id=${n.id}" style="font-weight:500;">${escapeHtml(title)}</a>
-            </li>
-            `;
-        });
+        const dateStr = n.publishedAt || '----.--.--';
         
-        list.innerHTML = html;
-
-    } catch (e) {
-        console.error("News Load Error:", e);
-        list.innerHTML = '<li>Load Error</li>';
-    }
+        html += `
+            <li class="news-item">
+                <a href="news_detail.html?id=${n.id}">
+                    <span class="news-date">${escapeHtml(dateStr)}</span>
+                    ${badgeHtml}
+                    <span class="news-title">${escapeHtml(n.title)}</span>
+                </a>
+            </li>
+        `;
+    });
+    list.innerHTML = html;
 }

@@ -4,309 +4,87 @@
 <head>
     <meta charset="UTF-8">
     <title>運営ダッシュボード | 大学杯</title>
-    <link rel="stylesheet" href="css/style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/admin.css">
     <link rel="icon" href="assets/favicon.ico">
+
+    <!-- Flatpickr (Date Picker) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/ja.js"></script>
+
     <style>
-        body {
-            background-color: #f1f2f6;
-        }
-
-        .admin-wrapper {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .login-box {
-            width: 100%;
-            max-width: 400px;
-            text-align: center;
-        }
-
-        .discord-btn {
-            background-color: #5865F2;
-            color: white;
-            width: 100%;
-            padding: 12px;
-            font-weight: bold;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: opacity 0.2s;
-        }
-
-        .discord-btn:hover {
-            opacity: 0.9;
-        }
-
-        /* Dashboard */
-        .dash-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-            display: none;
-        }
-
-        .dash-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-
-        .tab-menu {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 10px;
-        }
-
-        .tab-item {
-            padding: 8px 16px;
-            font-weight: bold;
-            color: #aaa;
-            cursor: pointer;
-        }
-
-        .tab-item.active {
-            color: var(--c-primary);
-            border-bottom: 2px solid var(--c-primary);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: #fff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: var(--shadow-soft);
-        }
-
-        .data-table th,
-        .data-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #eee;
-            text-align: left;
-        }
-
-        /* Modal */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal-box {
-            background: #fff;
-            padding: 30px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            font-size: 0.9rem;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-
-        .form-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
+        .u-hidden {
+            display: none !important;
         }
     </style>
 </head>
 
-<body>
+<body class="admin-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <nav class="sidebar-nav">
+            <!-- Removed Dashboard -->
+            <a href="#" class="sidebar-link active" data-tab="tournaments">大会管理</a>
+            <a href="#" class="sidebar-link" data-tab="news">お知らせ管理</a>
+            <!-- Removed Circles -->
+            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:10px 0;">
+            <a href="#" class="sidebar-link" onclick="handleLogout()">ログアウト</a>
+        </nav>
+        <div style="margin-top:auto; font-size:0.8rem; opacity:0.6; padding-top:20px;">
+            dev.1.1
+        </div>
+    </aside>
 
-    <!-- Login View -->
-    <div id="loginView" class="admin-wrapper">
-        <div class="card login-box">
-            <h1 class="heading-serif" style="margin-bottom:10px;">運営ダッシュボード</h1>
-            <p style="color:#636e72; margin-bottom:30px; font-size:0.9rem;">Authorized Personnel Only</p>
-            <button id="btnLoginDiscord" class="discord-btn">
-                <span>Discordでログイン</span>
-            </button>
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h2 id="pageTitle" style="font-size:1.5rem; font-weight:700; color:var(--c-primary-dark);">大会管理</h2>
+            <div class="user-info">
+                <span class="badge info" style="margin-right:10px;" id="userRoleBadge">Admin</span>
+                <div class="user-avatar"></div>
+                <div class="user-name" id="userNameDisplay">管理者</div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div id="contentArea">
+            <div class="admin-card">
+                <div class="card-header">Loading...</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- Tournament Edit Modal -->
+    <div id="tourModal" class="modal u-hidden"
+        style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div class="admin-card" style="width:90%; max-width:800px; max-height:90vh; overflow-y:auto;">
+            <div class="card-header" style="display:flex; justify-content:space-between;">
+                <span id="tourModalTitle">大会編集</span>
+                <button id="closeTourModal" style="font-size:1.5rem;">&times;</button>
+            </div>
+            <div id="tourFormContainer"></div>
         </div>
     </div>
 
-    <!-- Dashboard View -->
-    <div id="dashView" class="dash-container">
-        <div class="dash-header">
-            <h2 class="heading-serif">Dashboard</h2>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span id="loginUserName" style="font-size:0.9rem;">Admin</span>
-                <button id="btnLogout" class="btn btn-outline"
-                    style="padding:0.4rem 1rem; font-size:0.8rem;">Logout</button>
+    <!-- News Edit Modal -->
+    <div id="newsModal" class="modal u-hidden"
+        style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div class="admin-card" style="width:90%; max-width:600px; max-height:90vh; overflow-y:auto;">
+            <div class="card-header" style="display:flex; justify-content:space-between;">
+                <span id="newsModalTitle">お知らせ編集</span>
+                <button id="closeNewsModal" style="font-size:1.5rem;">&times;</button>
             </div>
-        </div>
-
-        <div class="tab-menu">
-            <div id="tabTour" class="tab-item active">大会管理</div>
-            <div id="tabNews" class="tab-item">お知らせ管理</div>
-        </div>
-
-        <!-- Tournaments Tab -->
-        <div id="contentTour" class="tab-content active">
-            <div class="card" style="padding:0;">
-                <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
-                    <b>大会一覧</b>
-                    <button id="btnNewTour" class="btn btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem;">+
-                        新規作成</button>
-                </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>大会名</th>
-                            <th>開催日</th>
-                            <th>Status</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tourTableBody">
-                        <!-- JS renders -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- News Tab -->
-        <div id="contentNews" class="tab-content">
-            <div class="card" style="padding:0;">
-                <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between;">
-                    <b>お知らせ一覧</b>
-                    <button id="btnNewNews" class="btn btn-primary" style="padding:0.4rem 1rem; font-size:0.85rem;">+
-                        新規作成</button>
-                </div>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>日付</th>
-                            <th>タイトル</th>
-                            <th>Badge</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="newsTableBody">
-                        <!-- JS renders -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal: Tournament Editor -->
-    <div id="modalTour" class="modal-overlay">
-        <div class="modal-box">
-            <h3 class="heading-serif" style="margin-bottom:20px;">大会編集</h3>
-            <form id="formTour">
-                <input type="hidden" id="tourId">
-                <div class="form-group">
-                    <label class="form-label">大会名</label>
-                    <input type="text" id="tourName" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">開催日 (YYYY-MM-DD HH:mm)</label>
-                    <input type="text" id="tourDate" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">ステータス</label>
-                    <select id="tourStatus" class="form-input">
-                        <option value="upcoming">Upcoming</option>
-                        <option value="open">Open (募集中)</option>
-                        <option value="closed">Closed (終了)</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">ルール (カンマ区切り)</label>
-                    <input type="text" id="tourRules" class="form-input" placeholder="ナワバリバトル, 2先">
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" id="btnCloseTourModal">キャンセル</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal: News Editor -->
-    <div id="modalNews" class="modal-overlay">
-        <div class="modal-box">
-            <h3 class="heading-serif" style="margin-bottom:20px;">お知らせ編集</h3>
-            <form id="formNews">
-                <input type="hidden" id="newsId">
-                <div class="form-group">
-                    <label class="form-label">タイトル</label>
-                    <input type="text" id="newsTitle" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">日付 (YYYY-MM-DD)</label>
-                    <input type="date" id="newsDate" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">バッジ</label>
-                    <select id="newsBadge" class="form-input">
-                        <option value="info">Info</option>
-                        <option value="recruit">Recruit</option>
-                        <option value="important">Important</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">本文 (Markdown)</label>
-                    <textarea id="newsBody" class="form-input" rows="5"></textarea>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-outline" id="btnCloseNewsModal">キャンセル</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
+            <div id="newsFormContainer"></div>
         </div>
     </div>
 
     <!-- Scripts -->
     <script type="module" src="js/admin.js"></script>
-
 </body>
 
 </html>
