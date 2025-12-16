@@ -1,11 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('ui.js loaded');
+    
     const toggleBtn = document.querySelector('.mob-toggle');
-    const mobMenu = document.getElementById('mobMenu');
-    const overlay = document.getElementById('mobOverlay');
-    const closeBtn = document.getElementById('mobClose');
-    const links = mobMenu ? mobMenu.querySelectorAll('a') : [];
+    const mobMenu = document.querySelector('.mob-menu');
+    const overlay = document.querySelector('.mob-overlay');
+    const closeBtn = document.querySelector('.mob-close');
 
-    if (!toggleBtn || !mobMenu || !overlay) return;
+    if (!toggleBtn || !mobMenu || !overlay) {
+        console.warn('Mobile menu elements not found');
+        console.log('toggleBtn:', toggleBtn);
+        console.log('mobMenu:', mobMenu);
+        console.log('overlay:', overlay);
+        return;
+    }
+
+    console.log('Mobile menu elements found');
 
     // Toggle Function
     function toggleMenu() {
@@ -18,19 +27,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function openMenu() {
+        console.log('Opening mobile menu');
         mobMenu.classList.add('is-open');
-        overlay.classList.add('active');
-        toggleBtn.innerHTML = '<span style="font-size:1.5rem; color:var(--c-primary);">✕</span>';
+        overlay.classList.add('is-open');
     }
 
     function closeMenu() {
+        console.log('Closing mobile menu');
         mobMenu.classList.remove('is-open');
-        overlay.classList.remove('active');
-        toggleBtn.innerHTML = '<span style="font-size:1.5rem; color:var(--c-primary);">☰</span>';
+        overlay.classList.remove('is-open');
     }
 
     // Event Listeners
-    toggleBtn.addEventListener('click', toggleMenu);
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('Toggle button clicked');
+        toggleMenu();
+    });
+    
     overlay.addEventListener('click', closeMenu);
     
     // Close button
@@ -38,8 +52,11 @@ document.addEventListener('DOMContentLoaded', () => {
         closeBtn.addEventListener('click', closeMenu);
     }
 
-    // Close when link clicked
+    // Close menu when clicking on a link
+    const links = mobMenu.querySelectorAll('.mob-link, a');
     links.forEach(link => {
         link.addEventListener('click', closeMenu);
     });
+    
+    console.log('Mobile menu initialized');
 });

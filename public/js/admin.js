@@ -1,7 +1,6 @@
 
 // Standalone Admin Logic
-const KEY_TOUR = 'dhp_tournaments';
-const KEY_NEWS = 'dhp_news';
+import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml } from './common.js';
 
 // Stage List (Splatoon 3)
 const STAGES = [
@@ -12,16 +11,6 @@ const STAGES = [
     'オヒョウ海運', 'バイガイ亭', 'カジキ空港', 'リュウグウターミナル'
 ];
 
-function getLocal(key) {
-    const d = localStorage.getItem(key);
-    try {
-        return d ? JSON.parse(d) : [];
-    } catch(e) { console.error('JSON Parse Error', e); return []; }
-}
-function setLocal(key, d) {
-    localStorage.setItem(key, JSON.stringify(d));
-}
-
 // Global Logout Function
 window.handleLogout = () => {
     if(confirm('ログアウトしますか？')) {
@@ -29,8 +18,8 @@ window.handleLogout = () => {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    initRouter();
+document.addEventListener('DOMContentLoaded', async () => {
+    await initRouter();
     
     // Global Modal Closers
     const cTour = document.getElementById('closeTourModal');
@@ -41,33 +30,33 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- Routing ---
-function initRouter() {
+async function initRouter() {
     const links = document.querySelectorAll('.sidebar-link[data-tab]');
     links.forEach(link => {
-        link.addEventListener('click', (e) => {
+        link.addEventListener('click', async (e) => {
             e.preventDefault();
             links.forEach(l => l.classList.remove('active'));
             link.classList.add('active');
             
             const tab = link.dataset.tab;
-            loadTab(tab);
+            await loadTab(tab);
         });
     });
 
     // Default Load: Tournaments since Dashboard is removed
-    loadTab('tournaments'); 
+    await loadTab('tournaments'); 
 }
 
-function loadTab(tab) {
+async function loadTab(tab) {
     const content = document.getElementById('contentArea');
     const title = document.getElementById('pageTitle');
     
     if (tab === 'tournaments') {
         title.textContent = '大会管理';
-        renderTournaments(content);
+        await renderTournaments(content);
     } else if (tab === 'news') {
         title.textContent = 'お知らせ管理';
-        renderNews(content);
+        await renderNews(content);
     } 
 }
 
@@ -104,8 +93,46 @@ function getNewsBadgeHtml(type, badge) {
 }
 
 // --- Tournaments Logic ---
-function renderTournaments(container) {
-    const tours = getLocal(KEY_TOUR);
+async function renderTournaments(container) {
+    const tours = await getTournaments();
+    
+    // ソートロジック:
+    // 1. ステータス優先順: ongoing(開催中) > upcoming(開催予定) > open(エントリー受付中) > closed(終了)
+    // 2. 各ステータス内で開催日時順（未設定を最前、その後は日時昇順）
+    // 3. 終了済みは日時降順（新しい順）
+    const statusOrder = { 'ongoing': 0, 'upcoming': 1, 'open': 2, 'closed': 3 };
+    
+    tours.sort((a, b) => {
+        // ステータス優先
+        const statusA = statusOrder[a.status] !== undefined ? statusOrder[a.status] : 99;
+        const statusB = statusOrder[b.status] !== undefined ? statusOrder[b.status] : 99;
+        
+        if (statusA !== statusB) {
+            return statusA - statusB;
+        }
+        
+        // 同じステータス内では日時でソート
+        const dateA = a.eventDate ? new Date(a.eventDate) : null;
+        const dateB = b.eventDate ? new Date(b.eventDate) : null;
+        
+        // 終了済み以外（ongoing/upcoming/open）の場合
+        if (a.status !== 'closed') {
+            // 日時未設定を最前に
+            if (!dateA && dateB) return -1;
+            if (dateA && !dateB) return 1;
+            if (!dateA && !dateB) return b.id - a.id; // 両方未設定ならID降順
+            
+            // 両方設定済みなら日時昇順（早い順）
+            return dateA - dateB;
+        }
+        
+        // 終了済み（closed）の場合は日時降順（新しい順）
+        if (!dateA && dateB) return 1;
+        if (dateA && !dateB) return -1;
+        if (!dateA && !dateB) return b.id - a.id;
+        
+        return dateB - dateA;
+    });
     
     container.innerHTML = `
         <div style="margin-bottom:20px; display:flex; justify-content:flex-end;">
@@ -113,23 +140,86 @@ function renderTournaments(container) {
         </div>
         <div class="admin-item-grid">
             ${tours.map(t => {
-                const dateDisp = t.eventDate ? t.eventDate.split(' ')[0] : '-';
+                const eventDateTime = t.eventDate || '-';
+                const rulesText = (t.rules && t.rules.length > 0) ? t.rules.join(', ') : 'なし';
+                const xpAvg = t.xpLimits?.avg || 'なし';
+                const xpMax = t.xpLimits?.max || 'なし';
+                const entryTypeText = t.entryType === 'circle_only' ? 'サークル限定' : (t.entryType === 'invite' ? 'サークル選抜' : 'クロスOK');
+                
+                // エントリー期間
+                const entryPeriodText = t.entryPeriod?.start && t.entryPeriod?.end 
+                    ? `${t.entryPeriod.start} ~ ${t.entryPeriod.end}` 
+                    : '未設定';
+                
+                // スタッフ情報
+                const casterName = t.caster?.name || '-';
+                const casterIcon = t.caster?.icon || '';
+                const commentatorName = t.commentator?.name || '-';
+                const commentatorIcon = t.commentator?.icon || '';
+                const coordinatorName = t.coordinator?.name || '-';
+                
+                // URL
+                const rulesUrl = t.rulesUrl || '';
+                
                 return `
-                <div class="admin-item-card">
-                    <div class="admin-item-header">
-                        <div class="admin-item-title">${t.name || t.title}</div>
-                        <span class="status-label ${t.status}">${getStatusLabel(t.status)}</span>
+                <div class="admin-item-card" style="cursor:pointer; transition: all 0.3s;">
+                    <div onclick="toggleTournamentDetails('tour-${t.id}')">
+                        <div class="admin-item-header">
+                            <div class="admin-item-title">${escapeHtml(t.name || t.title)}</div>
+                            <span class="status-label ${t.status}">${getStatusLabel(t.status)}</span>
+                        </div>
+                        <div class="admin-item-meta">
+                            <span>📅 ${escapeHtml(eventDateTime)}</span>
+                        </div>
+                        <div class="admin-item-meta">
+                            <span>🎮 ${escapeHtml(rulesText)}</span>
+                        </div>
+                        <div class="admin-item-meta">
+                            <span>📊 平均XP: ${escapeHtml(xpAvg)} / 最高XP: ${escapeHtml(xpMax)}</span>
+                        </div>
+                        <div class="admin-item-meta">
+                            <span>👥 ${escapeHtml(entryTypeText)}</span>
+                        </div>
                     </div>
-                    <div class="admin-item-meta">
-                        <span>📅 ${dateDisp}</span>
-                        <span>ID: ${t.id}</span>
+                    
+                    <!-- 折りたたみ詳細 -->
+                    <div id="tour-${t.id}" class="tour-details u-hidden" style="margin-top:15px; padding-top:15px; border-top:1px solid #e0e0e0;">
+                        <div style="margin-bottom:10px;">
+                            <strong style="color:#0c2461;">エントリー期間:</strong> ${escapeHtml(entryPeriodText)}
+                        </div>
+                        
+                        <div style="margin-bottom:10px;">
+                            <strong style="color:#0c2461;">スタッフ:</strong>
+                            <div style="margin-top:5px; display:flex; flex-direction:column; gap:8px;">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    ${casterIcon ? `<img src="${escapeHtml(casterIcon)}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" alt="実況">` : '🎙️'}
+                                    <span>実況: ${escapeHtml(casterName)}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    ${commentatorIcon ? `<img src="${escapeHtml(commentatorIcon)}" style="width:24px; height:24px; border-radius:50%; object-fit:cover;" alt="解説">` : '💬'}
+                                    <span>解説: ${escapeHtml(commentatorName)}</span>
+                                </div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span>📡</span>
+                                    <span>配信担当: ${escapeHtml(coordinatorName)}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${rulesUrl ? `
+                        <div style="margin-bottom:10px;">
+                            <strong style="color:#0c2461;">概要URL:</strong>
+                            <div style="display:flex; align-items:center; gap:8px; margin-top:5px;">
+                                <input type="text" value="${escapeHtml(rulesUrl)}" readonly style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:4px; font-size:0.85rem; background:#f8f8f8;">
+                                <button onclick="copyToClipboard('${escapeHtml(rulesUrl)}'); event.stopPropagation();" style="padding:6px 12px; background:#1e3799; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:0.85rem;">コピー</button>
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
-                     <div class="admin-item-meta">
-                        <span>👥 ${t.entryType === 'circle_only' ? 'サークル限定' : (t.entryType === 'invite' ? '招待制' : 'クロスOK')}</span>
-                    </div>
-                    <div class="admin-item-actions">
-                        <button onclick="window.editTour('${t.id}')" class="btn-action edit">編集</button>
-                        <button onclick="window.deleteTour('${t.id}')" class="btn-action delete">削除</button>
+                    
+                    <div class="admin-item-actions" style="margin-top:15px;">
+                        <button onclick="window.editTour('${t.id}'); event.stopPropagation();" class="btn-action edit">編集</button>
+                        <button onclick="window.deleteTour('${t.id}'); event.stopPropagation();" class="btn-action delete">削除</button>
                     </div>
                 </div>
                 `;
@@ -143,9 +233,26 @@ function renderTournaments(container) {
     }, 0);
 }
 
+// トグル関数とコピー関数をグローバルに定義
+window.toggleTournamentDetails = function(id) {
+    const details = document.getElementById(id);
+    if (details) {
+        details.classList.toggle('u-hidden');
+    }
+};
+
+window.copyToClipboard = function(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert('URLをクリップボードにコピーしました');
+    }).catch(err => {
+        console.error('コピー失敗:', err);
+    });
+};
+
+
 // --- News Logic ---
-function renderNews(container) {
-    const newsList = getLocal(KEY_NEWS);
+async function renderNews(container) {
+    const newsList = await getNews();
     
     // Convert to Card Layout
     container.innerHTML = `
@@ -182,16 +289,15 @@ function renderNews(container) {
 // --- Modals & Actions ---
 
 // Tournaments
-window.editTour = (id) => {
-    const tours = getLocal(KEY_TOUR);
+window.editTour = async (id) => {
+    const tours = await getTournaments();
     const t = tours.find(x => x.id == id);
     if(t) openTourModal(t);
 };
-window.deleteTour = (id) => {
+window.deleteTour = async (id) => {
     if(!confirm('削除しますか？')) return;
-    const tours = getLocal(KEY_TOUR).filter(x => x.id != id);
-    setLocal(KEY_TOUR, tours);
-    loadTab('tournaments');
+    await deleteTournament(id);
+    await loadTab('tournaments');
 };
 
 function openTourModal(data = null) {
@@ -284,8 +390,11 @@ function openTourModal(data = null) {
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">ステージ選択</label>
-                        <div class="stage-grid-container">
+                        <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; padding:12px; background:rgba(30,55,153,0.05); border-radius:8px; margin-bottom:10px;" onclick="this.nextElementSibling.classList.toggle('u-hidden'); this.querySelector('.accordion-icon').textContent = this.nextElementSibling.classList.contains('u-hidden') ? '▼' : '▲';">
+                            <label class="form-label" style="margin:0; cursor:pointer;">制限ステージ</label>
+                            <span class="accordion-icon" style="font-size:0.8rem; color:var(--c-primary);">▼</span>
+                        </div>
+                        <div class="stage-grid-container u-hidden" style="margin-top:10px;">
                             ${stageHtml}
                         </div>
                     </div>
@@ -299,39 +408,92 @@ function openTourModal(data = null) {
                          <select name="entryType" class="form-input">
                              <option value="circle_only" ${v('entryType')=='circle_only'?'selected':''}>同一サークル限定</option>
                              <option value="cross_ok" ${v('entryType')=='cross_ok'?'selected':''}>クロスサークルOK</option>
-                             <option value="invite" ${v('entryType')=='invite'?'selected':''}>招待制</option>
+                             <option value="invite" ${v('entryType')=='invite'?'selected':''}>サークル選抜</option>
                          </select>
                     </div>
+
 
                     <div class="form-row">
                         <div class="form-group u-flex-1">
                             <label class="form-label">平均XP上限</label>
-                            <input type="number" name="xpAvg" class="form-input" value="${v('xpLimits', 'avg')}">
+                            <input type="number" 
+                                   name="xpAvg" 
+                                   id="xpAvgInput"
+                                   class="form-input" 
+                                   value="${v('xpLimits', 'avg') || ''}"
+                                   placeholder="例: 2000"
+                                   ${!v('xpLimits', 'avg')?'disabled':''}>
+                            <label style="display:flex; align-items:center; gap:5px; margin-top:8px; font-size:0.9rem; cursor:pointer;">
+                                <input type="checkbox" 
+                                       name="xpAvgNone" 
+                                       id="xpAvgNone"
+                                       ${!v('xpLimits', 'avg')?'checked':''}
+                                       onchange="document.getElementById('xpAvgInput').disabled = this.checked; if(this.checked) document.getElementById('xpAvgInput').value = '';">
+                                <span>XP制限なし</span>
+                            </label>
                         </div>
                         <div class="form-group u-flex-1">
                             <label class="form-label">最高XP上限</label>
-                            <input type="number" name="xpMax" class="form-input" value="${v('xpLimits', 'max')}">
+                            <input type="number" 
+                                   name="xpMax" 
+                                   id="xpMaxInput"
+                                   class="form-input" 
+                                   value="${v('xpLimits', 'max') || ''}"
+                                   placeholder="例: 2400"
+                                   ${!v('xpLimits', 'max')?'disabled':''}>
+                            <label style="display:flex; align-items:center; gap:5px; margin-top:8px; font-size:0.9rem; cursor:pointer;">
+                                <input type="checkbox" 
+                                       name="xpMaxNone" 
+                                       id="xpMaxNone"
+                                       ${!v('xpLimits', 'max')?'checked':''}
+                                       onchange="document.getElementById('xpMaxInput').disabled = this.checked; if(this.checked) document.getElementById('xpMaxInput').value = '';">
+                                <span>XP制限なし</span>
+                            </label>
+                        </div>
+                    </div>
+
+
+                    <div class="form-group box-light">
+                        <label class="form-label">実況</label>
+                        <div style="position:relative;">
+                            <input type="text" 
+                                   name="casterName" 
+                                   id="casterNameInput"
+                                   placeholder="名前" 
+                                   class="form-input u-mb-5" 
+                                   value="${v('caster', 'name')}"
+                                   autocomplete="off">
+                            <div id="casterSuggestions" class="autocomplete-suggestions" style="display:none;"></div>
+                        </div>
+                        <input type="url" id="casterIconInput" name="casterIcon" placeholder="アイコンURL" class="form-input u-mb-5" value="${v('caster', 'icon')}">
+                        <div class="form-row">
+                            <input type="text" id="casterXInput" name="casterX" placeholder="@Twitter" class="form-input u-flex-1" value="${v('caster', 'xId')}">
+                            <input type="text" id="casterYtInput" name="casterYt" placeholder="YouTube URL" class="form-input u-flex-1" value="${v('caster', 'ytUrl')}">
                         </div>
                     </div>
 
                     <div class="form-group box-light">
-                        <label class="form-label">実況 (Caster)</label>
-                        <input type="text" name="casterName" placeholder="名前" class="form-input u-mb-5" value="${v('caster', 'name')}">
-                        <input type="url" name="casterIcon" placeholder="アイコンURL" class="form-input u-mb-5" value="${v('caster', 'icon')}">
+                        <label class="form-label">解説</label>
+                        <div style="position:relative;">
+                            <input type="text" 
+                                   name="comName" 
+                                   id="comNameInput"
+                                   placeholder="名前" 
+                                   class="form-input u-mb-5" 
+                                   value="${v('commentator', 'name')}"
+                                   autocomplete="off">
+                            <div id="comSuggestions" class="autocomplete-suggestions" style="display:none;"></div>
+                        </div>
+                        <input type="url" id="comIconInput" name="comIcon" placeholder="アイコンURL" class="form-input u-mb-5" value="${v('commentator', 'icon')}">
                         <div class="form-row">
-                            <input type="text" name="casterX" placeholder="@Twitter" class="form-input u-flex-1" value="${v('caster', 'xId')}">
-                            <input type="text" name="casterYt" placeholder="YouTube URL" class="form-input u-flex-1" value="${v('caster', 'ytUrl')}">
+                            <input type="text" id="comXInput" name="comX" placeholder="@Twitter" class="form-input u-flex-1" value="${v('commentator', 'xId')}">
+                            <input type="text" id="comYtInput" name="comYt" placeholder="YouTube URL" class="form-input u-flex-1" value="${v('commentator', 'ytUrl')}">
                         </div>
                     </div>
 
                     <div class="form-group box-light">
-                        <label class="form-label">解説 (Commentator)</label>
-                        <input type="text" name="comName" placeholder="名前" class="form-input u-mb-5" value="${v('commentator', 'name')}">
-                        <input type="url" name="comIcon" placeholder="アイコンURL" class="form-input u-mb-5" value="${v('commentator', 'icon')}">
-                        <div class="form-row">
-                            <input type="text" name="comX" placeholder="@Twitter" class="form-input u-flex-1" value="${v('commentator', 'xId')}">
-                            <input type="text" name="comYt" placeholder="YouTube URL" class="form-input u-flex-1" value="${v('commentator', 'ytUrl')}">
-                        </div>
+                        <label class="form-label">配信担当</label>
+                        <input type="text" name="coordinatorName" placeholder="名前" class="form-input" value="${v('coordinator', 'name')}">
                     </div>
 
                     <h4 class="form-section-title">結果アーカイブ</h4>
@@ -340,8 +502,30 @@ function openTourModal(data = null) {
                         <input type="text" name="winTeam" class="form-input" value="${v('result', 'teamName')}">
                     </div>
                     
+                    <div class="form-row">
+                        <div class="form-group u-flex-1">
+                            <label class="form-label">優勝チームの大学名</label>
+                            <input type="text" name="winUniversity" class="form-input" value="${v('result', 'university')}" placeholder="例: 東京大学">
+                        </div>
+                        <div class="form-group u-flex-1">
+                            <label class="form-label">優勝チームのサークル名</label>
+                            <input type="text" name="winCircle" class="form-input" value="${v('result', 'circle')}" placeholder="例: イカサークル">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group u-flex-1">
+                            <label class="form-label">大学名2</label>
+                            <input type="text" name="winUniversity2" class="form-input" value="${v('result', 'university2')}" placeholder="例: 京都大学">
+                        </div>
+                        <div class="form-group u-flex-1">
+                            <label class="form-label">サークル名2</label>
+                            <input type="text" name="winCircle2" class="form-input" value="${v('result', 'circle2')}" placeholder="例: イカサークル2">
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
-                        <label class="form-label">優勝メンバー (4名)</label>
+                        <label class="form-label">優勝メンバー</label>
                         <div class="form-row">
                             <input type="text" name="winMem1" placeholder="Member 1" class="form-input u-flex-1" value="${v('result', 'members') ? (v('result', 'members')[0]||'') : ''}">
                             <input type="text" name="winMem2" placeholder="Member 2" class="form-input u-flex-1" value="${v('result', 'members') ? (v('result', 'members')[1]||'') : ''}">
@@ -386,6 +570,138 @@ function openTourModal(data = null) {
 
     modal.classList.remove('u-hidden');
     
+    // ===== オートコンプリート機能の実装 =====
+    setTimeout(async () => {
+        // 過去の大会データから実況・解説者の情報を取得（統合）
+        const tours = await getTournaments();
+        const staffMembers = []; // 実況・解説を統合した配列
+        
+        // 古い順に処理して、最新のデータで上書きする
+        // getTournaments()は新しい順（ID降順）なので、逆順にする
+        const toursReversed = [...tours].reverse();
+        
+        // 実況と解説の両方から情報を収集
+        toursReversed.forEach(t => {
+            // 実況者の情報を追加/更新
+            if (t.caster && t.caster.name) {
+                // 既に同じ情報のエントリのインデックスを探す
+                const duplicateIndex = staffMembers.findIndex(s => 
+                    s.name === t.caster.name && 
+                    s.icon === t.caster.icon && 
+                    s.xId === t.caster.xId && 
+                    s.ytUrl === t.caster.ytUrl
+                );
+                
+                if (duplicateIndex !== -1) {
+                    // 既存のエントリを削除
+                    staffMembers.splice(duplicateIndex, 1);
+                }
+                // 最新のデータを追加
+                staffMembers.push({ ...t.caster, _index: staffMembers.length });
+            }
+            
+            // 解説者の情報を追加/更新
+            if (t.commentator && t.commentator.name) {
+                // 既に同じ情報のエントリのインデックスを探す
+                const duplicateIndex = staffMembers.findIndex(s => 
+                    s.name === t.commentator.name && 
+                    s.icon === t.commentator.icon && 
+                    s.xId === t.commentator.xId && 
+                    s.ytUrl === t.commentator.ytUrl
+                );
+                
+                if (duplicateIndex !== -1) {
+                    // 既存のエントリを削除
+                    staffMembers.splice(duplicateIndex, 1);
+                }
+                // 最新のデータを追加
+                staffMembers.push({ ...t.commentator, _index: staffMembers.length });
+            }
+        });
+        
+        // インデックスを再割り当て
+        staffMembers.forEach((member, idx) => {
+            member._index = idx;
+        });
+        
+        // オートコンプリート設定関数（配列版）
+        const setupAutocomplete = (inputId, suggestionsId, dataArray, iconInputId, xInputId, ytInputId) => {
+            const input = document.getElementById(inputId);
+            const suggestionsDiv = document.getElementById(suggestionsId);
+            const iconInput = document.getElementById(iconInputId);
+            const xInput = document.getElementById(xInputId);
+            const ytInput = document.getElementById(ytInputId);
+            
+            if (!input || !suggestionsDiv) return;
+            
+            input.addEventListener('input', (e) => {
+                const value = e.target.value.trim().toLowerCase();
+                
+                if (value.length < 1) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                // 名前でフィルタリング（部分一致）
+                const matches = dataArray
+                    .filter(person => person.name.toLowerCase().includes(value))
+                    .slice(0, 10); // 最大10件
+                
+                if (matches.length === 0) {
+                    suggestionsDiv.style.display = 'none';
+                    return;
+                }
+                
+                // サジェスト表示（同名でも区別できるように追加情報を表示）
+                suggestionsDiv.innerHTML = matches.map(person => {
+                    let detailText = '';
+                    if (person.xId) {
+                        detailText = ` (${person.xId})`;
+                    } else if (person.ytUrl) {
+                        detailText = ' (YouTube)';
+                    }
+                    
+                    return `
+                        <div class="autocomplete-item" data-index="${person._index}">
+                            ${person.icon ? `<img src="${escapeHtml(person.icon)}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; margin-right:8px;">` : ''}
+                            <span>${escapeHtml(person.name)}${escapeHtml(detailText)}</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                suggestionsDiv.style.display = 'block';
+                
+                // クリックイベント設定
+                suggestionsDiv.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const selectedIndex = parseInt(item.dataset.index);
+                        const selectedInfo = dataArray.find(p => p._index === selectedIndex);
+                        
+                        if (selectedInfo) {
+                            input.value = selectedInfo.name;
+                            if (iconInput) iconInput.value = selectedInfo.icon || '';
+                            if (xInput) xInput.value = selectedInfo.xId || '';
+                            if (ytInput) ytInput.value = selectedInfo.ytUrl || '';
+                        }
+                        
+                        suggestionsDiv.style.display = 'none';
+                    });
+                });
+            });
+            
+            // 外側クリックで非表示
+            document.addEventListener('click', (e) => {
+                if (!input.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+                    suggestionsDiv.style.display = 'none';
+                }
+            });
+        };
+        
+        // 実況・解説者のオートコンプリートを設定（共通のデータソースを使用）
+        setupAutocomplete('casterNameInput', 'casterSuggestions', staffMembers, 'casterIconInput', 'casterXInput', 'casterYtInput');
+        setupAutocomplete('comNameInput', 'comSuggestions', staffMembers, 'comIconInput', 'comXInput', 'comYtInput');
+    }, 100);
+    
     const form = document.getElementById('formTour');
     form.onsubmit = (e) => {
         e.preventDefault();
@@ -396,6 +712,10 @@ function openTourModal(data = null) {
         
         const stagesSelected = [];
         form.querySelectorAll('input[name="stages"]:checked').forEach(el => stagesSelected.push(el.value));
+
+        // XP Limits処理 - チェックボックスで制御
+        const xpAvgValue = fd.get('xpAvgNone') ? null : (fd.get('xpAvg') || null);
+        const xpMaxValue = fd.get('xpMaxNone') ? null : (fd.get('xpMax') || null);
 
         const newTour = {
             id: Number(fd.get('id')),
@@ -412,8 +732,8 @@ function openTourModal(data = null) {
             stages: stagesSelected,
             entryType: fd.get('entryType'),
             xpLimits: {
-                avg: fd.get('xpAvg'),
-                max: fd.get('xpMax')
+                avg: xpAvgValue,
+                max: xpMaxValue
             },
             caster: {
                 name: fd.get('casterName'),
@@ -427,9 +747,16 @@ function openTourModal(data = null) {
                 xId: fd.get('comX'),
                 ytUrl: fd.get('comYt')
             },
+            coordinator: {
+                name: fd.get('coordinatorName')
+            },
             license: fd.get('license'),
             result: {
                 teamName: fd.get('winTeam'),
+                university: fd.get('winUniversity'),
+                circle: fd.get('winCircle'),
+                university2: fd.get('winUniversity2'),
+                circle2: fd.get('winCircle2'),
                 members: [fd.get('winMem1'), fd.get('winMem2'), fd.get('winMem3'), fd.get('winMem4')],
                 image: fd.get('winImage'),
                 postUrl: fd.get('winUrl')
@@ -437,30 +764,27 @@ function openTourModal(data = null) {
             archiveUrl: fd.get('archiveUrl')
         };
         
-        const tours = getLocal(KEY_TOUR);
-        const idx = tours.findIndex(x => x.id == newTour.id);
-        if(idx >= 0) {
-            tours[idx] = { ...tours[idx], ...newTour };
-        } else {
-            tours.push(newTour);
-        }
-        setLocal(KEY_TOUR, tours);
-        modal.classList.add('u-hidden');
-        loadTab('tournaments');
+        // Save to Supabase
+        saveTournament(newTour).then(() => {
+            modal.classList.add('u-hidden');
+            loadTab('tournaments');
+        }).catch(err => {
+            console.error('Save error:', err);
+            alert('保存に失敗しました');
+        });
     };
 }
 
 // News
-window.editNews = (id) => {
-    const list = getLocal(KEY_NEWS);
+window.editNews = async (id) => {
+    const list = await getNews();
     const n = list.find(x => x.id == id);
     if(n) openNewsModal(n);
 };
-window.deleteNews = (id) => {
+window.deleteNews = async (id) => {
     if(!confirm('削除しますか？')) return;
-    const list = getLocal(KEY_NEWS).filter(x => x.id != id);
-    setLocal(KEY_NEWS, list);
-    loadTab('news');
+    await deleteNews(id);
+    await loadTab('news');
 };
 
 function openNewsModal(data = null) {
@@ -549,15 +873,13 @@ function openNewsModal(data = null) {
             badge: badge
         };
         
-        const list = getLocal(KEY_NEWS);
-        const idx = list.findIndex(x => x.id == newItem.id);
-        if(idx >= 0) {
-            list[idx] = newItem;
-        } else {
-            list.push(newItem);
-        }
-        setLocal(KEY_NEWS, list);
-        modal.classList.add('u-hidden');
-        loadTab('news');
+        // Save to Supabase
+        saveNews(newItem).then(() => {
+            modal.classList.add('u-hidden');
+            loadTab('news');
+        }).catch(err => {
+            console.error('Save error:', err);
+            alert('保存に失敗しました');
+        });
     };
 }

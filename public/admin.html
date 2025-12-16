@@ -15,6 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://npmcdn.com/flatpickr/dist/l10n/ja.js"></script>
 
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         .u-hidden {
             display: none !important;
@@ -62,10 +65,17 @@
     <!-- Tournament Edit Modal -->
     <div id="tourModal" class="modal u-hidden"
         style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:flex; align-items:center; justify-content:center;">
-        <div class="admin-card" style="width:90%; max-width:800px; max-height:90vh; overflow-y:auto;">
-            <div class="card-header" style="display:flex; justify-content:space-between;">
+        <div class="admin-card"
+            style="width:90%; max-width:800px; max-height:90vh; overflow-y:auto; position:relative;">
+            <button id="closeTourModal" class="modal-close-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="card-header">
                 <span id="tourModalTitle">大会編集</span>
-                <button id="closeTourModal" style="font-size:1.5rem;">&times;</button>
             </div>
             <div id="tourFormContainer"></div>
         </div>
@@ -74,10 +84,17 @@
     <!-- News Edit Modal -->
     <div id="newsModal" class="modal u-hidden"
         style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:flex; align-items:center; justify-content:center;">
-        <div class="admin-card" style="width:90%; max-width:600px; max-height:90vh; overflow-y:auto;">
-            <div class="card-header" style="display:flex; justify-content:space-between;">
+        <div class="admin-card"
+            style="width:90%; max-width:600px; max-height:90vh; overflow-y:auto; position:relative;">
+            <button id="closeNewsModal" class="modal-close-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="card-header">
                 <span id="newsModalTitle">お知らせ編集</span>
-                <button id="closeNewsModal" style="font-size:1.5rem;">&times;</button>
             </div>
             <div id="newsFormContainer"></div>
         </div>

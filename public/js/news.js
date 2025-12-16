@@ -1,23 +1,20 @@
 
-import { getLocalData, KEY_NEWS, escapeHtml } from "./common.js";
+import { getNews, escapeHtml } from "./common.js";
 
-// Page State
-let currentYear = 'all';
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Check which page we are on
     if (document.getElementById('newsListFull')) {
-        initNewsList();
+        await initNewsList();
     } else if (document.getElementById('newsDetailContainer')) {
-        initNewsDetail();
+        await initNewsDetail();
     }
 });
 
 // ==========================================
 // LIST PAGE LOGIC
 // ==========================================
-function initNewsList() {
-    const data = getLocalData(KEY_NEWS);
+async function initNewsList() {
+    const data = await getNews();
     if (!data || data.length === 0) {
         document.getElementById('newsListFull').innerHTML = '<li style="padding:20px; text-align:center;">お知らせはありません</li>';
         return;
@@ -77,7 +74,7 @@ function renderNewsList(data, year) {
     }
 
     if (filtered.length === 0) {
-        list.innerHTML = '<li style="padding:40px; text-align:center; color:#999;">該当するお知らせはありません</li>';
+        list.innerHTML = '<li style="padding:40px; text-align:center; color:#999; grid-column:1/-1;">該当するお知らせはありません</li>';
         return;
     }
 
@@ -88,7 +85,6 @@ function renderNewsList(data, year) {
         let badgeHtml = '';
         const type = n.type || 'normal';
         
-        // Logic duplicated from main.js (should theoretically be shared but simple enough)
         if (type === 'tournament') {
             badgeHtml = '<span class="badge-news tour">大会情報</span>';
         } else {
@@ -111,15 +107,13 @@ function renderNewsList(data, year) {
         } catch(e) {}
 
         const item = document.createElement('li');
-        item.style.borderBottom = '1px solid #eee';
-        item.style.padding = '20px';
         item.innerHTML = `
-            <a href="news_detail.html?id=${n.id}" style="display:block; text-decoration:none; color:inherit;">
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                    <span class="text-eng" style="color:#aaa; font-size:0.9rem;">${escapeHtml(dateStr)}</span>
+            <a href="news_detail.html?id=${n.id}">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
+                    <span class="text-eng" style="color:#999; font-size:0.85rem; font-weight:600; letter-spacing:0.05em;">${escapeHtml(dateStr)}</span>
                     ${badgeHtml}
                 </div>
-                <h3 style="font-size:1.1rem; font-weight:700; line-height:1.5;">${escapeHtml(title)}</h3>
+                <h3 style="font-size:1.1rem; font-weight:700; line-height:1.6; margin:0; color:var(--c-primary-dark);">${escapeHtml(title)}</h3>
             </a>
         `;
         list.appendChild(item);
@@ -127,10 +121,11 @@ function renderNewsList(data, year) {
 }
 
 
+
 // ==========================================
 // DETAIL PAGE LOGIC
 // ==========================================
-function initNewsDetail() {
+async function initNewsDetail() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     const container = document.getElementById('newsDetailContainer');
@@ -141,7 +136,7 @@ function initNewsDetail() {
         return;
     }
 
-    const data = getLocalData(KEY_NEWS);
+    const data = await getNews();
     // Loose comparison for ID (string vs number)
     const news = data.find(d => d.id == id);
 
@@ -160,7 +155,6 @@ function initNewsDetail() {
     } catch(e){}
 
     let badgeHtml = '';
-    // Simplify badge logic reuse
     if (news.type === 'tournament') {
         badgeHtml = '<span class="badge-news tour">大会情報</span>';
     } else {
@@ -184,29 +178,14 @@ function initNewsDetail() {
     `;
 
     // Render Share Buttons
-    // Rule: if type == tournament => #大学杯 #{Name}
-    // else => #大学杯
-    const shareUrl = window.location.href; // Current URL
-    let hashTags = '大学杯';
-    if(news.type === 'tournament') {
-        hashTags += `,${news.title}`; // Twitter allows comma separated
-    } else {
-        // If regular news, maybe just #大学杯
-    }
-    
-    // BUT user said: "Tournament Info": #大学杯 #{Title}, Else: #大学杯
+    const shareUrl = window.location.href;
     let textToShare = news.title;
     let hashes = '大学杯';
     
-    if(news.type === 'tournament' || (news.badge === 'recruit')) { // Assuming 'tournament' type
-       // user said if tournament info. 
-       // Currently my sample data has types. 
-       // Let's check type.
-       // Actually user logic: "Tournament Info" -> #大学杯 #{Title}
-       // "Otherwise" -> #大学杯
-       if(news.title.includes('大会') || news.type === 'tournament') {
+    if(news.type === 'tournament' || (news.badge === 'recruit')) {
+        if(news.title.includes('大会') || news.type === 'tournament') {
            hashes = `大学杯,${news.title}`;
-       }
+        }
     }
 
     const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(textToShare)}&hashtags=${encodeURIComponent(hashes)}`;

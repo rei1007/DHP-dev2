@@ -11,6 +11,9 @@
     <!-- Scripts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -20,15 +23,16 @@
     </div>
 
     <!-- Header (Link to List) -->
-    <header class="site-header">
+    <header class="site-header"
+        style="background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); box-shadow:0 2px 20px rgba(0,0,0,0.05);">
         <div class="container header-inner">
-            <a href="index.html" class="logo">
+            <a href="index.html" class="logo" style="color:var(--c-primary);">
                 <img src="assets/大学杯ロゴ.png" alt="大学杯" style="height:45px;"
                     onerror="this.onerror=null; this.parentNode.innerHTML='<span class=\'heading-serif\' style=\'font-size:1.5rem; color:var(--c-primary);\'>大学杯</span>'">
             </a>
             <nav class="nav-sub">
-                <a href="index.html" class="nav-link-sub">TOP</a>
-                <a href="news.html" class="nav-link-sub">お知らせ一覧</a>
+                <a href="index.html" class="nav-link-sub" style="color:var(--c-primary);">TOP</a>
+                <a href="news.html" class="nav-link-sub" style="color:var(--c-primary);">お知らせ一覧</a>
             </nav>
         </div>
     </header>
@@ -63,8 +67,8 @@
             <div class="heading-serif" style="font-size:1.5rem; font-weight:700; margin-bottom:10px; color:#fff;">大学杯
             </div>
             <p class="text-eng" style="margin-bottom:20px;">INKOLLEGE STUDENT CUP</p>
-            <div class="footer-links" style="display:flex; justify-content:center; gap:20px;">
-                <a href="#" style="opacity:0.8;">利用規約</a>
+            <div class="footer-nav" style="display:flex; justify-content:center; gap:20px;">
+                <a href="privacy.html" style="opacity:0.8;">利用規約</a>
                 <a href="https://x.com/daigakuhai_op" target="_blank" style="opacity:0.8;">運営X アカウント</a>
                 <a href="admin.html" target="_blank" style="opacity:0.8;">運営ダッシュボード</a>
             </div>

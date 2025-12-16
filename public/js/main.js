@@ -1,151 +1,245 @@
 
-import { escapeHtml } from "./common.js";
+import { escapeHtml, getTournaments, getNews } from "./common.js";
 
-// ==========================================
-// Mock Data Utilities
-// ==========================================
-// const KEY_TOUR = 'dhp_tournaments';
-// const KEY_NEWS = 'dhp_news';
-// Use common.js if imported, but for now duplicate reference or remove if common.js is solid.
-// But wait, main.js previously had them. User asked to export them from common.js.
-// I should update main.js to import them.
-import { getLocalData, setLocalData, KEY_TOUR, KEY_NEWS } from "./common.js";
-
-// Inject Sample Data if empty (logic moved or kept here? kept here for init)
-function initSampleData() {
-    if (getLocalData(KEY_TOUR).length === 0) {
-        setLocalData(KEY_TOUR, [
-            { id: 1, name: 'Sample Tournament Cup', eventDate: '2025-01-20 19:00', status: 'upcoming', rules: ['ナワバリバトル'] },
-            { id: 2, name: 'DHP Weekly #1', eventDate: '2024-12-10 20:00', status: 'closed', rules: ['エリア', 'ヤグラ'] },
-            { id: 3, name: 'Sample Open Cup', eventDate: '2025-02-10 20:00', status: 'open', entryEnd: '2025-02-09', rules: ['ホコ'] },
-            { id: 4, name: 'Sample Open Cup 2', eventDate: '2025-02-15 20:00', status: 'open', entryEnd: '2025-02-14', rules: ['アサリ'] }
-        ]);
-    }
-    if (getLocalData(KEY_NEWS).length === 0) {
-        setLocalData(KEY_NEWS, [
-            { id: 1, title: 'サイトをリニューアルしました', publishedAt: '2024-12-15', badge: 'info', type: 'normal', body: 'DHPの公式サイトをリニューアルしました。' },
-            { id: 2, title: '第1回 大会エントリー開始', publishedAt: '2025-01-05', badge: 'recruit', type: 'normal', body: '皆様の参加をお待ちしております。' }
-        ]);
-    }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    initSampleData();
-    loadTournaments();
-    loadNews();
-    checkOpenEntry();
-});
-
-// --- Floating Entry Button Logic ---
-function checkOpenEntry() {
-    const tours = getLocalData(KEY_TOUR);
-    const openTours = tours.filter(t => t.status === 'open');
+export async function checkOpenEntry() {
+    const tours = await getTournaments();
+    const activeTours = tours.filter(t => t.status === 'open' || t.status === 'ongoing');
+    
+    // ソート: 開催中 → エントリー受付中（締め切り順）
+    activeTours.sort((a, b) => {
+        // ステータス優先: ongoing > open
+        if (a.status === 'ongoing' && b.status !== 'ongoing') return -1;
+        if (a.status !== 'ongoing' && b.status === 'ongoing') return 1;
+        
+        // 両方がエントリー受付中の場合、締め切り日時順（早い順）
+        if (a.status === 'open' && b.status === 'open') {
+            const endA = a.entryPeriod?.end ? new Date(a.entryPeriod.end) : null;
+            const endB = b.entryPeriod?.end ? new Date(b.entryPeriod.end) : null;
+            
+            // 締め切り未設定を後ろに
+            if (!endA && endB) return 1;
+            if (endA && !endB) return -1;
+            if (!endA && !endB) return b.id - a.id; // 両方未設定ならID降順
+            
+            // 締め切り早い順
+            return endA - endB;
+        }
+        
+        return 0;
+    });
+    
     const floatBtn = document.getElementById('floatingEntryBtn');
     
-    if (openTours.length > 0 && floatBtn) {
-        // Show primary (first)
-        const top = openTours[0];
-        const dateInfo = getFormatEntryDate(top);
-
-        // Expanded List Generation
-        let expandToggleHtml = '';
-        let listHtml = '';
+    if (activeTours.length > 0 && floatBtn) {
+        const totalCount = activeTours.length;
         
-        if (openTours.length > 1) {
-            const count = openTours.length - 1;
-            expandToggleHtml = `<div class="entry-expand-toggle" id="btnExpandEntry">▼ 他${count}件</div>`;
+        const cardsHtml = activeTours.map((t, idx) => {
+            const isOngoing = t.status === 'ongoing';
+            const dateInfo = getFormatEntryDate(t);
+            const dotColor = isOngoing ? '#eb2f06' : '#27ae60';
+            const btnColor = isOngoing ? '#eb2f06' : '#27ae60';
+            const statusText = isOngoing ? '開催中' : 'エントリー受付中';
             
-            listHtml = '<div class="entry-list-container u-hidden" id="entryExpandedList">';
-            openTours.forEach((t, idx) => {
-                if(idx===0) return; // skip top
-                listHtml += `
-                <div class="entry-item-row">
-                    <div style="flex:1;">
-                         <div style="font-size:0.9rem; font-weight:700; color:#0c2461;">${escapeHtml(t.name)}</div>
-                         <div style="font-size:0.75rem; color:#666;">${escapeHtml(getFormatEntryDate(t))}</div>
+            return `
+                <div class="floating-entry-card ${idx === 0 ? 'active' : ''}" data-index="${idx}">
+                    <div class="floating-entry-header">
+                        <div class="floating-entry-status" style="color: ${dotColor};">
+                            <span class="status-dot" style="background: ${dotColor};"></span>
+                            ${statusText}
+                        </div>
+                        <div class="floating-header-actions">
+                            ${totalCount > 1 ? `<span class="card-counter">${idx + 1}/${totalCount}</span>` : ''}
+                            <button class="floating-minimize-btn" onclick="window.minimizeFloatingEntry(event)" aria-label="最小化">−</button>
+                        </div>
                     </div>
-                    <a href="#latest" class="entry-notif-btn" style="padding:4px 12px; font-size:0.75rem;">確認</a>
+                    <h3 class="floating-entry-title">${escapeHtml(t.name)}</h3>
+                    <p class="floating-entry-date">${escapeHtml(dateInfo)}</p>
+                    <a href="#latest" class="floating-entry-action" style="background: ${btnColor};">
+                        確認する
+                    </a>
                 </div>
-                `;
-            });
-            listHtml += '</div>';
-        }
-
-        floatBtn.innerHTML = `
-            <div class="entry-notif-card">
-                <div class="btn-minimize-entry" id="btnMinEntry">×</div>
-                <div class="entry-notif-content">
-                    <div class="entry-notif-title">${escapeHtml(top.name)}</div>
-                    <div class="entry-notif-date">
-                        <span style="display:inline-block; width:8px; height:8px; background:#eb2f06; border-radius:50%;"></span>
-                        ${escapeHtml(dateInfo)}
-                    </div>
-                </div>
-                <div>
-                    <a href="#latest" class="entry-notif-btn">確認</a>
-                </div>
-            </div>
-            ${expandToggleHtml}
-            ${listHtml}
-            <div class="btn-restore-entry" id="btnRestoreEntry">エントリー受付中</div>
-        `;
-        floatBtn.style.display = 'flex';
+            `;
+        }).join('');
         
-        // Event for expand
-        const btnExp = document.getElementById('btnExpandEntry');
-        if(btnExp) {
-            btnExp.addEventListener('click', () => {
-                const list = document.getElementById('entryExpandedList');
-                if(list.classList.contains('u-hidden')) {
-                     list.classList.remove('u-hidden');
-                     btnExp.innerText = `▲ 閉じる`;
+        const indicatorsHtml = totalCount > 1 
+            ? `<div class="floating-entry-indicators">
+                ${activeTours.map((_, idx) => `
+                    <button class="indicator-dot ${idx === 0 ? 'active' : ''}" 
+                            onclick="window.switchFloatingCard(${idx}, true)"
+                            aria-label="大会${idx + 1}"></button>
+                `).join('')}
+               </div>`
+            : '';
+        
+        floatBtn.innerHTML = `
+            <div class="floating-entry-container">
+                <div class="floating-entry-cards">
+                    ${cardsHtml}
+                </div>
+                ${indicatorsHtml}
+            </div>
+            <button class="floating-restore-btn" onclick="window.restoreFloatingEntry(event)">
+                <span class="restore-icon">📢</span>
+                <span class="restore-text">大会情報 ${totalCount > 1 ? `(${totalCount})` : ''}</span>
+            </button>
+        `;
+        
+        floatBtn.classList.remove('minimized');
+        floatBtn.style.display = 'block';
+        
+        // 自動切り替えタイマーを停止（既存のものがあれば）
+        if (window.floatingAutoSwitchInterval) {
+            clearInterval(window.floatingAutoSwitchInterval);
+        }
+        
+        // グローバル関数として定義
+        window.minimizeFloatingEntry = function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            floatBtn.classList.add('minimized');
+            
+            // 最小化時は自動切り替えを停止
+            if (window.floatingAutoSwitchInterval) {
+                clearInterval(window.floatingAutoSwitchInterval);
+            }
+        };
+        
+        window.restoreFloatingEntry = function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            floatBtn.classList.remove('minimized');
+            
+            // 復元時に自動切り替えを再開（複数ある場合のみ）
+            if (totalCount > 1) {
+                startAutoSwitch();
+            }
+        };
+        
+        window.switchFloatingCard = function(index, manual = false) {
+            const cards = floatBtn.querySelectorAll('.floating-entry-card');
+            const indicators = floatBtn.querySelectorAll('.indicator-dot');
+            
+            cards.forEach((card, idx) => {
+                if (idx === index) {
+                    card.classList.add('active');
                 } else {
-                    list.classList.add('u-hidden');
-                    const count = openTours.length - 1;
-                    btnExp.innerText = `▼ 他${count}件`;
+                    card.classList.remove('active');
                 }
             });
+            
+            indicators.forEach((ind, idx) => {
+                if (idx === index) {
+                    ind.classList.add('active');
+                } else {
+                    ind.classList.remove('active');
+                }
+            });
+            
+            // 手動切り替え時はタイマーをリセット
+            if (manual && totalCount > 1) {
+                if (window.floatingAutoSwitchInterval) {
+                    clearInterval(window.floatingAutoSwitchInterval);
+                }
+                startAutoSwitch();
+            }
+        };
+        
+        // 自動切り替え開始関数
+        const startAutoSwitch = function() {
+            let currentIndex = 0;
+            window.floatingAutoSwitchInterval = setInterval(() => {
+                currentIndex = (currentIndex + 1) % totalCount;
+                window.switchFloatingCard(currentIndex, false);
+            }, 5000); // 5秒ごとに切り替え
+        };
+        
+        // 複数ある場合のみ自動切り替え開始
+        if (totalCount > 1) {
+            startAutoSwitch();
         }
         
-        // Event for minimize
-        document.getElementById('btnMinEntry').addEventListener('click', () => {
-            floatBtn.classList.add('minimized');
-        });
-        // Event for restore
-        document.getElementById('btnRestoreEntry').addEventListener('click', () => {
-            floatBtn.classList.remove('minimized');
-        });
     } else if (floatBtn) {
         floatBtn.style.display = 'none';
+        
+        // タイマーを停止
+        if (window.floatingAutoSwitchInterval) {
+            clearInterval(window.floatingAutoSwitchInterval);
+        }
     }
 }
+
 function getFormatEntryDate(t) {
+    if (t.status === 'ongoing') {
+        if (t.eventDate) {
+            const d = new Date(t.eventDate);
+            if (!isNaN(d)) {
+                return `${d.getMonth()+1}月${d.getDate()}日 開催中`;
+            }
+        }
+        return '開催中';
+    }
+    
     if(!t.entryPeriod || !t.entryPeriod.end) return 'エントリー受付中';
     const end = new Date(t.entryPeriod.end);
     if(isNaN(end)) return 'エントリー受付中';
-    return `~ ${end.getMonth()+1}/${end.getDate()} ${('0'+end.getHours()).slice(-2)}:${('0'+end.getMinutes()).slice(-2)} まで`;
+    return `${end.getMonth()+1}月${end.getDate()}日 ${('0'+end.getHours()).slice(-2)}:${('0'+end.getMinutes()).slice(-2)} まで`;
 }
 
 // --- Tournaments ---
-function loadTournaments() {
+export async function loadTournaments() {
+    console.log('loadTournaments called (main.js)');
     const list = document.getElementById('tourList');
-    if (!list) return;
+    if (!list) {
+        console.error('tourList element not found');
+        return;
+    }
 
     try {
-        const data = getLocalData(KEY_TOUR);
+        console.log('Fetching tournaments from main.js...');
+        const data = await getTournaments();
+        console.log('Tournaments fetched in main.js:', data ? data.length : 0);
 
         if (!data || data.length === 0) {
             list.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#aaa;">現在表示できる大会情報はありません。</div>';
             return;
         }
 
-        // Sort: Status priority (ongoing > open > upcoming > closed) + ID desc
-        const statusOrder = { 'ongoing': 0, 'open': 1, 'upcoming': 2, 'closed': 3 };
+        // ソートロジック:
+        // 1. ステータス優先順: ongoing(開催中) > upcoming(開催予定) > open(エントリー受付中) > closed(終了)
+        // 2. 各ステータス内で開催日時順（未設定を最前、その後は日時昇順）
+        // 3. 終了済みは日時降順（新しい順）
+        const statusOrder = { 'ongoing': 0, 'upcoming': 1, 'open': 2, 'closed': 3 };
+        
         data.sort((a, b) => {
-            const sA = statusOrder[a.status] !== undefined ? statusOrder[a.status] : 99;
-            const sB = statusOrder[b.status] !== undefined ? statusOrder[b.status] : 99;
-            if (sA !== sB) return sA - sB;
-            return b.id - a.id;
+            // ステータス優先
+            const statusA = statusOrder[a.status] !== undefined ? statusOrder[a.status] : 99;
+            const statusB = statusOrder[b.status] !== undefined ? statusOrder[b.status] : 99;
+            
+            if (statusA !== statusB) {
+                return statusA - statusB;
+            }
+            
+            // 同じステータス内では日時でソート
+            const dateA = a.eventDate ? new Date(a.eventDate) : null;
+            const dateB = b.eventDate ? new Date(b.eventDate) : null;
+            
+            // 終了済み以外（ongoing/upcoming/open）の場合
+            if (a.status !== 'closed') {
+                // 日時未設定を最前に
+                if (!dateA && dateB) return -1;
+                if (dateA && !dateB) return 1;
+                if (!dateA && !dateB) return b.id - a.id; // 両方未設定ならID降順
+                
+                // 両方設定済みなら日時昇順（早い順）
+                return dateA - dateB;
+            }
+            
+            // 終了済み（closed）の場合は日時降順（新しい順）
+            if (!dateA && dateB) return 1;
+            if (dateA && !dateB) return -1;
+            if (!dateA && !dateB) return b.id - a.id;
+            
+            return dateB - dateA;
         });
 
         const displayData = data.slice(0, 6);
@@ -156,10 +250,13 @@ function loadTournaments() {
             const status = t.status || 'upcoming';
             const eventDate = t.eventDate || '未定';
             const rules = t.rules || []; 
+            const entryType = t.entryType || 'cross_ok';
+            const caster = t.caster || {};
+            const commentator = t.commentator || {};
 
             let badgeClass = 'upcoming';
             let badgeLabel = '開催予定';
-            let btnLabel = '大会詳細'; // Default
+            let btnLabel = '大会詳細';
             let btnClass = 'btn-outline';
             
             if (status === 'open') { 
@@ -175,50 +272,99 @@ function loadTournaments() {
                 btnLabel = '大会結果'; btnClass = 'btn-outline';
             }
 
-            // Date Formatting (Always show time)
-            let dateStr = eventDate;
+            // Entry Type Text
+            let entryTypeText = 'クロスサークルOK';
+            if (entryType === 'circle_only') entryTypeText = '同一サークル限定';
+            else if (entryType === 'invite') entryTypeText = 'サークル選抜';
+
+            // Date Formatting - 目立たせる
+            let dateDisplay = eventDate;
+            let dateMonth = '';
+            let dateDay = '';
+            let dateTime = '';
             try {
                 const d = new Date(eventDate);
                 if (!isNaN(d)) {
-                    dateStr = `${d.getFullYear()}.${('0'+(d.getMonth()+1)).slice(-2)}.${('0'+d.getDate()).slice(-2)} ${('0'+d.getHours()).slice(-2)}:${('0'+d.getMinutes()).slice(-2)}`;
+                    dateMonth = `${d.getMonth()+1}月`;
+                    dateDay = `${d.getDate()}日`;
+                    dateTime = `${('0'+d.getHours()).slice(-2)}:${('0'+d.getMinutes()).slice(-2)}`;
                 }
             } catch(e){}
 
-            // Rules Icon
-            // Assuming image path convention: assets/icon_rule_{rule}.png or similar
-            // For now just text or simple logic if images available.
+            // Rules Icon - use images from assets/weapon
             let rulesHtml = '';
             if (rules.length > 0) {
-                rulesHtml = '<div class="rule-icons">';
+                rulesHtml = '<div class="rule-icons" style="display:flex; gap:6px; margin-top:8px;">';
                 rules.forEach(r => {
-                    // map rule name to icon filename if needed
-                    // Simple text fallback or placeholder icons
-                    // User requested "Academic" feel, maybe simple text tags? 
-                    // Let's use generic placeholder icons for now or styled text.
-                    // rulesHtml += `<span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${escapeHtml(r)}</span>`;
-                    
-                    // Attempt image if assets exist. 
-                    // For now, let's use a placeholder img tag with alt.
-                    // rulesHtml += `<img src="assets/rule_icon.png" alt="${r}" class="rule-icon" title="${r}">`;
-                    // Wait, user provided specific rule names in admin. 
-                    // Let's use simple span badges for now to be safe.
-                    rulesHtml += `<span class="badge" style="font-weight:400; background:#f0f0f0; border:none; color:#555;">${escapeHtml(r)}</span>`;
+                    // Map rule names to image filenames
+                    const ruleImageMap = {
+                        'ナワバリバトル': 'assets/weapon/ルール_ナワバリバトル.png',
+                        'ガチエリア': 'assets/weapon/ルール_ガチエリア.png',
+                        'ガチヤグラ': 'assets/weapon/ルール_ガチヤグラ.png',
+                        'ガチホコバトル': 'assets/weapon/ルール_ガチホコ.png',
+                        'ガチホコ': 'assets/weapon/ルール_ガチホコ.png',
+                        'ガチアサリ': 'assets/weapon/ルール_ガチアサリ.png'
+                    };
+                    const imgSrc = ruleImageMap[r] || '';
+                    if (imgSrc) {
+                        rulesHtml += `<img src="${imgSrc}" alt="${escapeHtml(r)}" title="${escapeHtml(r)}" style="width:28px; height:28px; object-fit:contain;">`;
+                    } else {
+                        rulesHtml += `<span class="badge" style="font-weight:400; background:#f0f0f0; border:none; color:#555; font-size:0.75rem; padding:2px 6px;">${escapeHtml(r)}</span>`;
+                    }
                 });
                 rulesHtml += '</div>';
+            }
+
+            // Staff Info
+            let staffHtml = '';
+            if (caster.name || commentator.name) {
+                staffHtml = '<div style="margin-top:10px; display:flex; gap:12px; flex-wrap:wrap;">';
+                
+                if (caster.name) {
+                    const casterIcon = caster.icon || '';
+                    staffHtml += `
+                        <div style="display:flex; align-items:center; gap:5px; font-size:0.8rem; color:#666;">
+                            ${casterIcon ? `<img src="${escapeHtml(casterIcon)}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;" alt="実況">` : '<span style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; background:#e0e0e0; border-radius:50%; font-size:0.55rem; color:#666;">実</span>'}
+                            <span>実況: ${escapeHtml(caster.name)}</span>
+                        </div>
+                    `;
+                }
+                
+                if (commentator.name) {
+                    const commentatorIcon = commentator.icon || '';
+                    staffHtml += `
+                        <div style="display:flex; align-items:center; gap:5px; font-size:0.8rem; color:#666;">
+                            ${commentatorIcon ? `<img src="${escapeHtml(commentatorIcon)}" style="width:20px; height:20px; border-radius:50%; object-fit:cover;" alt="解説">` : '<span style="width:20px; height:20px; display:flex; align-items:center; justify-content:center; background:#e0e0e0; border-radius:50%; font-size:0.55rem; color:#666;">解</span>'}
+                            <span>解説: ${escapeHtml(commentator.name)}</span>
+                        </div>
+                    `;
+                }
+                
+                staffHtml += '</div>';
             }
 
             html += `
             <div class="card-note js-scroll-trigger">
                 <div class="card-note-inner">
                     <div class="card-note-content">
-                        <div class="u-mb-10">
+                        <div class="u-mb-10" style="margin-bottom:8px;">
                             <span class="badge ${badgeClass}">${badgeLabel}</span>
                         </div>
-                        <h3 style="margin:0 0 10px; font-size:1.2rem; line-height:1.4;">${escapeHtml(name)}</h3>
-                        <div style="font-size:0.9rem; color:#666; display:flex; align-items:center; gap:5px;">
-                            <span>📅</span> ${escapeHtml(dateStr)}
+                        <h3 style="margin:0 0 8px; font-size:1.15rem; line-height:1.3;">${escapeHtml(name)}</h3>
+                        
+                        <!-- 目立つ日時表示 -->
+                        <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:6px;">
+                            <span style="font-size:1.3rem; font-weight:700; color:#0c2461;">${dateMonth} ${dateDay}</span>
+                            <span style="font-size:1rem; font-weight:600; color:#1e3799;">${dateTime}</span>
                         </div>
+                        
+                        <!-- エントリータイプ -->
+                        <div style="font-size:0.8rem; color:#666; margin-bottom:6px;">
+                            参加形式: ${escapeHtml(entryTypeText)}
+                        </div>
+                        
                         ${rulesHtml}
+                        ${staffHtml}
                     </div>
                     <div class="card-note-action">
                          <button class="btn ${btnClass} btn-sm" onclick="alert('詳細ページは準備中です')">${btnLabel}</button>
@@ -228,22 +374,23 @@ function loadTournaments() {
             `;
         });
         list.innerHTML = html;
+        console.log('Tournaments rendered in main.js');
 
     } catch (e) {
-        console.error(e);
-        list.innerHTML = 'Error loading tournaments.';
+        console.error('Error loading tournaments:', e);
+        list.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:red;">大会情報の読み込みに失敗しました: ' + e.message + '</div>';
     }
 }
 
 
 // --- News ---
-function loadNews() {
+export async function loadNews() {
     const list = document.getElementById('newsList');
     if (!list) return;
 
-    const data = getLocalData(KEY_NEWS);
+    const data = await getNews();
     if (!data || data.length === 0) {
-        list.innerHTML = '<li style="padding:10px; color:#aaa;">お知らせはありません</li>';
+        list.innerHTML = '<li style="padding:40px; text-align:center; color:#aaa;">お知らせはありません</li>';
         return;
     }
 
@@ -269,17 +416,27 @@ function loadNews() {
             }
         }
 
-        const dateStr = n.publishedAt || '----.--.--';
+        // Format date
+        let dateStr = n.publishedAt || '----.--.--';
+        try {
+            const d = new Date(n.publishedAt);
+            if (!isNaN(d)) {
+                dateStr = `${d.getFullYear()}.${('0'+(d.getMonth()+1)).slice(-2)}.${('0'+d.getDate()).slice(-2)}`;
+            }
+        } catch(e) {}
         
         html += `
             <li class="news-item">
                 <a href="news_detail.html?id=${n.id}">
-                    <span class="news-date">${escapeHtml(dateStr)}</span>
-                    ${badgeHtml}
-                    <span class="news-title">${escapeHtml(n.title)}</span>
+                    <div class="news-header">
+                        <span class="news-date">${escapeHtml(dateStr)}</span>
+                        ${badgeHtml}
+                    </div>
+                    <h3 class="news-title">${escapeHtml(n.title)}</h3>
                 </a>
             </li>
         `;
     });
     list.innerHTML = html;
 }
+

@@ -37,13 +37,69 @@
     box-shadow: 0 8px 20px rgba(30, 55, 153, 0.3);
 }
 
+/* News List Full - Card Grid Design */
+#newsListFull {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+}
+
+@media (max-width: 768px) {
+    #newsListFull {
+        grid-template-columns: 1fr;
+    }
+}
+
+#newsListFull li {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 16px;
+    padding: 28px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+#newsListFull li::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 5px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--c-primary) 0%, var(--c-primary-light) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#newsListFull li:hover {
+    transform: translateY(-6px);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 15px 40px rgba(30, 55, 153, 0.2);
+    border-color: #fff;
+}
+
+#newsListFull li:hover::before {
+    opacity: 1;
+}
+
+#newsListFull li a {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
 /* News Detail Container */
 #newsDetailContainer {
     position: relative;
     z-index: 1;
-    /* Use common glass styles manually or extend here */
     background: rgba(255, 255, 255, 0.8) !important;
-    /* Force override inline styles if any */
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.5);
     border-radius: 20px !important;
