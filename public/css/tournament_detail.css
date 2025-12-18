@@ -1,0 +1,586 @@
+/* ====================================
+   Tournament Detail Page Styles
+   Academic + Glassmorphism Design
+   ==================================== */
+
+/* Page Container */
+.tournament-detail-wrapper {
+    padding-top: 100px;
+    padding-bottom: 80px;
+    min-height: 80vh;
+}
+
+.tournament-detail-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+/* Glass Panel Base (from index.css pattern) */
+.detail-glass-card {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    padding: 50px;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.tournament-title-section {
+    padding: 35px 50px;
+}
+
+/* Left accent line on hover */
+.detail-glass-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--c-primary) 0%, var(--c-primary-light) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.detail-glass-card:hover::before {
+    opacity: 1;
+}
+
+.detail-glass-card:hover {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 12px 35px rgba(30, 55, 153, 0.15);
+    border-color: #fff;
+}
+
+/* Section Title */
+.section-title-detail {
+    font-family: var(--f-serif);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--c-primary-dark);
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid rgba(30, 55, 153, 0.1);
+}
+
+/* ========== Title Section ========== */
+.tournament-title-section h1 {
+    font-family: var(--f-serif);
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--c-primary-dark);
+    margin-bottom: 20px;
+    line-height: 1.3;
+}
+
+.meta-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 25px;
+    align-items: center;
+}
+
+.meta-item-detail {
+    padding: 0;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.meta-item-detail:hover {
+    background: rgba(248, 249, 252, 0.9);
+    transform: translateY(-2px);
+}
+
+.meta-label-detail {
+    font-family: var(--f-eng);
+    font-size: 0.7rem;
+    color: var(--c-primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.meta-value-detail {
+    font-size: 1rem;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+/* Rule Icons (Inline) */
+.rule-icons-inline {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.rule-icons-inline img {
+    height: 36px;
+    width: auto;
+    border-radius: 6px;
+    transition: transform 0.2s ease;
+}
+
+.rule-icons-inline img:hover {
+    transform: scale(1.1);
+}
+
+/* Mini Staff */
+.staff-mini-list {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.staff-mini-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.staff-mini-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #ddd;
+}
+
+/* ========== Result Section ========== */
+.result-section-wrapper {
+    border-left: 4px solid var(--c-accent);
+}
+
+.winner-showcase {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .winner-showcase {
+        grid-template-columns: 1fr;
+    }
+}
+
+.winner-image-wrapper {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.winner-image-wrapper:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+}
+
+.winner-image-wrapper img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.winner-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.winner-badge {
+    display: inline-block;
+    background: var(--c-accent);
+    color: #fff;
+    font-size: 0.75rem;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-weight: 700;
+    width: fit-content;
+}
+
+.winner-team-name {
+    font-family: var(--f-serif);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--c-primary-dark);
+    line-height: 1.3;
+}
+
+.winner-affiliation {
+    color: #7f8c8d;
+    font-size: 1rem;
+}
+
+.winner-members-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.member-pill {
+    background: #f0f4f8;
+    color: #2c3e50;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.archive-link {
+    margin-top: 15px;
+    display: inline-block;
+    color: var(--c-primary);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.archive-link:hover {
+    border-bottom-color: var(--c-primary);
+}
+
+/* ========== Info Section ========== */
+.info-grid-detail {
+    display: grid;
+    gap: 25px;
+}
+
+.info-row {
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.info-label-row {
+    font-size: 0.85rem;
+    color: var(--c-primary);
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.info-content-row {
+    font-size: 0.95rem;
+    color: #333;
+    line-height: 1.7;
+}
+
+/* XP Bars */
+.xp-display {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.xp-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.xp-item-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+.xp-bar-track {
+    background: #e9ecef;
+    height: 14px;
+    border-radius: 7px;
+    overflow: hidden;
+    position: relative;
+}
+
+.xp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--c-primary-light), var(--c-primary));
+    border-radius: 7px;
+    transition: width 0.5s ease;
+}
+
+.xp-bar-fill.is-max {
+    background: linear-gradient(90deg, var(--c-accent), #e74c3c);
+}
+
+/* Staff Cards (Not nested, inline) */
+.staff-list-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.staff-item-detail {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: rgba(248, 249, 252, 0.6);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.staff-item-detail:hover {
+    background: rgba(248, 249, 252, 1);
+    transform: translateX(4px);
+}
+
+.staff-icon-detail {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #ddd;
+    flex-shrink: 0;
+}
+
+.staff-info-detail {
+    flex: 1;
+}
+
+.staff-role-label {
+    font-size: 0.7rem;
+    color: #95a5a6;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.staff-name-detail {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.staff-social-links {
+    display: flex;
+    gap: 6px;
+}
+
+.staff-social-link {
+    color: #7f8c8d;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.staff-social-link:hover {
+    color: var(--c-primary);
+    background: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(30, 55, 153, 0.15);
+}
+
+/* Nintendo Notice */
+.nintendo-disclaimer {
+    background: rgba(255, 243, 224, 0.5);
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 4px solid #f39c12;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.7;
+    margin-top: 20px;
+}
+
+.nintendo-disclaimer a {
+    color: var(--c-primary);
+    text-decoration: underline;
+}
+
+.nintendo-disclaimer a:hover {
+    color: var(--c-primary-dark);
+}
+
+/* Overview Link */
+.overview-link-wrapper {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.overview-link {
+    color: var(--c-primary);
+    font-weight: 700;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.overview-link:hover {
+    border-bottom-color: var(--c-primary);
+}
+
+/* ========== Entry Section ========== */
+.entry-section-wrapper {
+    text-align: center;
+}
+
+.entry-status-message {
+    font-size: 1.1rem;
+    color: #7f8c8d;
+    margin-bottom: 25px;
+    font-weight: 500;
+}
+
+.entry-form-wrapper {
+    max-width: 450px;
+    margin: 0 auto;
+}
+
+.entry-agreement-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.entry-agreement-box input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--c-primary);
+}
+
+.entry-agreement-box label {
+    font-size: 0.95rem;
+    color: #555;
+    cursor: pointer;
+}
+
+.entry-btn-large {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 16px;
+    background: var(--c-primary);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.entry-btn-large:hover:not(:disabled) {
+    background: var(--c-primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(30, 55, 153, 0.3);
+}
+
+.entry-btn-large:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+}
+
+/* ========== Share Buttons (Match news.css) ========== */
+.share-section {
+    margin-top: 40px;
+    text-align: center;
+}
+
+.share-buttons-wrapper {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.btn-share {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 28px;
+    border-radius: 50px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    font-family: var(--f-eng);
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-share.tw {
+    background: #000;
+    color: #fff;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.btn-share.tw:hover {
+    background: #333;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.btn-share.copy {
+    background: rgba(255, 255, 255, 0.8);
+    color: #333;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+.btn-share.copy:hover {
+    background: #fff;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+    .detail-glass-card {
+        padding: 30px 25px;
+    }
+
+    .tournament-title-section {
+        padding: 25px 20px;
+    }
+
+    .tournament-title-section h1 {
+        font-size: 1.6rem;
+    }
+
+    .section-title-detail {
+        font-size: 1.3rem;
+    }
+
+    .meta-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+
+    .winner-team-name {
+        font-size: 1.4rem;
+    }
+}

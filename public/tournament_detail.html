@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大会詳細 | DHP</title>
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/tournament_detail.css">
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <!-- Loading Screen (Standard) -->
+    <div class="loading-screen">
+        <div class="loading-ink"></div>
+    </div>
+
+    <!-- Header (Link to List) -->
+    <header class="site-header"
+        style="background:rgba(255,255,255,0.95); backdrop-filter:blur(10px); box-shadow:0 2px 20px rgba(0,0,0,0.05);">
+        <div class="container header-inner">
+            <a href="index.html" class="logo" style="color:var(--c-primary);">
+                <img src="assets/大学杯ロゴ.png" alt="大学杯" style="height:60px;"
+                    onerror="this.onerror=null; this.parentNode.innerHTML='<span class=\'heading-serif\' style=\'font-size:1.5rem; color:var(--c-primary);\'>大学杯</span>'">
+            </a>
+            <nav class="nav-sub">
+                <a href="index.html" class="nav-link-sub" style="color:var(--c-primary);">TOP</a>
+                <a href="tournaments.html" class="nav-link-sub" style="color:var(--c-primary);">大会一覧</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="tournament-detail-wrapper">
+        <div class="tournament-detail-container">
+
+            <!-- Title Section -->
+            <section id="tournamentTitle">
+                <!-- Loaded via JS -->
+                <div style="text-align:center; padding:40px; color:#aaa;">読み込み中...</div>
+            </section>
+
+            <!-- Result Section (shown only when status is 'closed') -->
+            <section id="tournamentResult" class="u-hidden">
+                <!-- Loaded via JS -->
+            </section>
+
+            <!-- Tournament Info Section -->
+            <section id="tournamentInfo">
+                <!-- Loaded via JS -->
+            </section>
+
+            <!-- Entry Section -->
+            <section id="tournamentEntry">
+                <!-- Loaded via JS -->
+            </section>
+
+            <!-- Share Buttons -->
+            <div id="shareButtons">
+                <!-- JS Injected -->
+            </div>
+
+            <div style="margin-top:50px; text-align:center;">
+                <a href="tournaments.html" class="btn btn-outline">一覧に戻る</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="heading-serif" style="font-size:1.5rem; font-weight:700; margin-bottom:10px; color:#fff;">大学杯
+            </div>
+            <p class="text-eng" style="margin-bottom:20px;">INKOLLEGE STUDENT CUP</p>
+            <div class="footer-nav" style="display:flex; justify-content:center; gap:20px;">
+                <a href="privacy.html" style="opacity:0.8;">利用規約</a>
+                <a href="https://x.com/daigakuhai_op" target="_blank" style="opacity:0.8;">運営X アカウント</a>
+                <a href="admin.html" target="_blank" style="opacity:0.8;">運営ダッシュボード</a>
+            </div>
+            <p style="margin-top:30px; font-size:0.8rem; opacity:0.6;">&copy; 2025 Inkollege Student Cup. All Rights
+                Reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script type="module" src="js/tournament_detail.js"></script>
+    <script type="module">
+        import { AnimationManager } from './js/animations.js';
+        const anim = new AnimationManager();
+        anim.initLoading();
+    </script>
+</body>
+
+</html>

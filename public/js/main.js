@@ -369,7 +369,7 @@ export async function loadTournaments() {
                         ${staffHtml}
                     </div>
                     <div class="card-note-action">
-                         <button class="btn ${btnClass} btn-sm" onclick="alert('詳細ページは準備中です')">${btnLabel}</button>
+                         <a href="tournament_detail.html?id=${t.id}" class="btn ${btnClass} btn-sm">${btnLabel}</a>
                     </div>
                 </div>
             </div>
