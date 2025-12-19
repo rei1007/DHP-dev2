@@ -201,13 +201,49 @@ async function ensureUserInDatabase(authUser) {
         }
         
         console.log('🔧 [ensureUserInDatabase] Completed successfully');
+        
+        // ========================================
+        // 運営ロールチェック（アクセス制限）
+        // ========================================
+        console.log('🔒 Checking user role for admin access...');
+        
+        // ユーザーのロールを再取得して確認
+        const { data: userRole, error: roleError } = await client
+            .from('users')
+            .select('role')
+            .eq('id', authUser.id)
+            .single();
+        
+        if (roleError) {
+            console.error('❌ Error fetching user role:', roleError);
+            alert('ロール確認エラー: ' + roleError.message);
+            window.location.href = 'index.html';
+            throw new Error('Failed to verify user role');
+        }
+        
+        console.log('🔒 User role:', userRole.role);
+        
+        // 運営ロール以外はアクセス拒否
+        if (userRole.role !== 'admin') {
+            console.warn('⚠️ Access denied: User does not have admin role');
+            alert('運営ダッシュボードへのアクセス権限がありません。\n\n運営ロールが付与されるまでお待ちください。');
+            window.location.href = 'index.html';
+            throw new Error('Unauthorized: User role is not admin');
+        }
+        
+        console.log('✅ Admin role verified. Access granted.');
+        
     } catch (err) {
         console.error('❌❌❌ Failed to ensure user in database:', err);
         console.error('❌❌❌ Error stack:', err.stack);
-        // エラーが発生してもログインは継続
-        // しかし、エラーの詳細をユーザーに通知
+        
+        // アクセス拒否エラーの場合は再スロー
+        if (err.message.includes('Unauthorized')) {
+            throw err;
+        }
+        
+        // その他のエラーの場合
         if (!err.message.includes('already exists')) {
-            // 重複エラー以外はアラート表示
             console.error('❌ CRITICAL ERROR - User not saved to database!');
         }
     }
