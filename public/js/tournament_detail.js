@@ -385,8 +385,8 @@ function renderEntry(tournament) {
 function renderShareButtons(tournament) {
     const shareContainer = document.getElementById('shareButtons');
     const shareUrl = window.location.href;
-    const textToShare = `${tournament.name} - 大学対抗戦`;
-    const hashtags = '大学Splatoon';
+    const textToShare = `${tournament.name}`;
+    const hashtags = '大学杯';
 
     const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(textToShare)}&hashtags=${encodeURIComponent(hashtags)}`;
 

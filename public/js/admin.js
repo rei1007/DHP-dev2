@@ -1,6 +1,8 @@
 
+
 // Standalone Admin Logic
 import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml } from './common.js';
+import { requireAuth, logout, getCurrentUser } from './auth.js';
 
 // Stage List (Splatoon 3)
 const STAGES = [
@@ -12,13 +14,28 @@ const STAGES = [
 ];
 
 // Global Logout Function
-window.handleLogout = () => {
+window.handleLogout = async () => {
     if(confirm('ログアウトしますか？')) {
-        window.location.href = 'login.html';
+        await logout();
     }
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 認証チェック
+    const user = await requireAuth();
+    if (!user) {
+        // requireAuthが既にリダイレクトを処理
+        return;
+    }
+    
+    // ユーザー情報を表示
+    const userNameDisplay = document.getElementById('userNameDisplay');
+    if (userNameDisplay && user) {
+        // Discordのユーザー名を表示
+        const username = user.user_metadata?.full_name || user.user_metadata?.name || user.email || '運営者';
+        userNameDisplay.textContent = username;
+    }
+    
     await initRouter();
     
     // Global Modal Closers
