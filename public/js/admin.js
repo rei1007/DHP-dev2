@@ -30,10 +30,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // ユーザー情報を表示
     const userNameDisplay = document.getElementById('userNameDisplay');
-    if (userNameDisplay && user) {
+    const userAvatar = document.querySelector('.user-avatar');
+    
+    if (user) {
         // Discordのユーザー名を表示
         const username = user.user_metadata?.full_name || user.user_metadata?.name || user.email || '運営者';
-        userNameDisplay.textContent = username;
+        if (userNameDisplay) {
+            userNameDisplay.textContent = username;
+        }
+        
+        // Discordのアイコン画像を表示
+        if (userAvatar) {
+            const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+            
+            console.log('👤 User avatar URL:', avatarUrl);
+            console.log('📋 Full user metadata:', user.user_metadata);
+            
+            if (avatarUrl) {
+                // アイコンURLがある場合は画像を表示
+                userAvatar.style.backgroundImage = `url(${avatarUrl})`;
+                userAvatar.style.backgroundSize = 'cover';
+                userAvatar.style.backgroundPosition = 'center';
+            } else {
+                // アイコンがない場合はイニシャルを表示
+                const initial = username.charAt(0).toUpperCase();
+                userAvatar.textContent = initial;
+                userAvatar.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                userAvatar.style.color = '#fff';
+                userAvatar.style.display = 'flex';
+                userAvatar.style.alignItems = 'center';
+                userAvatar.style.justifyContent = 'center';
+                userAvatar.style.fontSize = '1.2rem';
+                userAvatar.style.fontWeight = 'bold';
+            }
+        }
     }
     
     await initRouter();
