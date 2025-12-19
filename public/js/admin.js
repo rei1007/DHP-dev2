@@ -961,107 +961,71 @@ async function renderAccounts(container) {
     const pendingUsers = users.filter(u => u.role === 'pending');
     
     container.innerHTML = `
-        <div class="admin-card" style="margin-bottom: 20px;">
-            <div class="card-header">
-                <span>アカウント管理</span>
-            </div>
-            <div style="padding: 15px;">
-                <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 150px; padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">
-                        <div style="font-size: 0.85rem; opacity: 0.9;">運営</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; margin-top: 3px;">${adminUsers.length}</div>
-                    </div>
-                    <div style="flex: 1; min-width: 150px; padding: 12px; background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius: 8px; color: #333;">
-                        <div style="font-size: 0.85rem; opacity: 0.8;">未承認</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; margin-top: 3px;">${pendingUsers.length}</div>
-                    </div>
+        <div style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; gap:15px;">
+                <div style="padding:8px 16px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:20px; color:white; font-size:0.85rem;">
+                    <span style="opacity:0.9;">運営:</span>
+                    <span style="font-weight:bold; margin-left:5px;">${adminUsers.length}</span>
+                </div>
+                <div style="padding:8px 16px; background:linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius:20px; color:#333; font-size:0.85rem;">
+                    <span style="opacity:0.8;">未承認:</span>
+                    <span style="font-weight:bold; margin-left:5px;">${pendingUsers.length}</span>
                 </div>
             </div>
         </div>
-
-        <div class="admin-card">
-            <div class="card-header">
-                <span>登録アカウント一覧</span>
-            </div>
-            <div style="padding: 15px;">
-                ${users.length === 0 ? '<p style="text-align:center; color:#999; padding:30px 0;">アカウントがありません</p>' : ''}
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px;">
-                    ${users.map(u => {
-                        const isAdmin = u.role === 'admin';
-                        const isPending = u.role === 'pending';
-                        const displayName = u.username || u.email || 'ユーザー';
-                        const createdAt = u.created_at ? new Date(u.created_at).toLocaleDateString('ja-JP') : '-';
-                        
-                        // ロール表示とスタイル
-                        let roleText = '未承認';
-                        let roleColor = '#fdcb6e';
-                        let nextRole = 'admin';
-                        let nextRoleText = '運営';
-                        
-                        if (isAdmin) {
-                            roleText = '運営';
-                            roleColor = '#667eea';
-                            nextRole = 'pending';
-                            nextRoleText = '未承認';
-                        }
-                        
-                        return `
-                        <div class="admin-item-card" style="padding: 15px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); transition: all 0.3s;">
-                            <!-- アバターとユーザー名 -->
-                            <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 12px;">
-                                ${u.avatar_url ? 
-                                    `<img src="${escapeHtml(u.avatar_url)}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.12);" alt="avatar">` :
-                                    `<div style="width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.5rem; margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.12);">${displayName.charAt(0).toUpperCase()}</div>`
-                                }
-                                <div style="font-size: 1rem; font-weight: bold; color: #0c2461; text-align: center;">
-                                    ${escapeHtml(displayName)}
-                                </div>
-                            </div>
-                            
-                            <!-- ロール情報（クリック可能） -->
-                            <div style="text-align: center; margin-bottom: 10px;">
-                                <button 
-                                    onclick="window.toggleUserRole('${u.id}', '${nextRole}', '${escapeHtml(displayName)}', '${nextRoleText}')" 
-                                    style="
-                                        background: ${roleColor}; 
-                                        color: white; 
-                                        border: none; 
-                                        padding: 6px 16px; 
-                                        border-radius: 16px; 
-                                        font-size: 0.85rem; 
-                                        font-weight: bold; 
-                                        cursor: pointer; 
-                                        transition: all 0.3s;
-                                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                                    "
-                                    onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 3px 8px rgba(0,0,0,0.15)';"
-                                    onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)';"
-                                    title="クリックで${nextRoleText}に変更"
-                                >
-                                    ${roleText}
-                                </button>
-                            </div>
-                            
-                            <!-- 登録日 -->
-                            <div style="font-size: 0.75rem; color: #999; text-align: center; margin-bottom: 10px;">
-                                📅 ${createdAt}
-                            </div>
-                            
-                            <!-- 削除ボタン -->
-                            <div style="text-align: center;">
-                                <button 
-                                    onclick="window.deleteUserAccount('${u.id}', '${escapeHtml(displayName)}')" 
-                                    class="btn-action delete"
-                                    style="padding: 6px 12px; font-size: 0.8rem; width: auto; min-width: 80px;"
-                                >
-                                    削除
-                                </button>
+        <div class="admin-item-grid">
+            ${users.length === 0 ? '<p style="text-align:center; color:#999; padding:40px 0;">アカウントがありません</p>' : ''}
+            ${users.map(u => {
+                const isAdmin = u.role === 'admin';
+                const isPending = u.role === 'pending';
+                const displayName = u.username || u.email || 'ユーザー';
+                const createdAt = u.created_at ? new Date(u.created_at).toLocaleDateString('ja-JP') : '-';
+                
+                // ロール表示とスタイル
+                let roleText = '未承認';
+                let roleColor = '#fdcb6e';
+                let nextRole = 'admin';
+                let nextRoleText = '運営';
+                
+                if (isAdmin) {
+                    roleText = '運営';
+                    roleColor = '#667eea';
+                    nextRole = 'pending';
+                    nextRoleText = '未承認';
+                }
+                
+                return `
+                <div class="admin-item-card">
+                    <div class="admin-item-header">
+                        <div style="display:flex; align-items:center; gap:12px; flex:1;">
+                            ${u.avatar_url ? 
+                                `<img src="${escapeHtml(u.avatar_url)}" style="width:48px; height:48px; border-radius:50%; object-fit:cover;" alt="avatar">` :
+                                `<div style="width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.2rem;">${displayName.charAt(0).toUpperCase()}</div>`
+                            }
+                            <div style="flex:1;">
+                                <div class="admin-item-title">${escapeHtml(displayName)}</div>
                             </div>
                         </div>
-                        `;
-                    }).join('')}
+                        <button 
+                            onclick="window.toggleUserRole('${u.id}', '${nextRole}', '${escapeHtml(displayName)}', '${nextRoleText}')" 
+                            class="status-label ${isAdmin ? 'open' : 'upcoming'}"
+                            style="cursor:pointer; transition:all 0.3s;"
+                            onmouseover="this.style.transform='scale(1.05)';"
+                            onmouseout="this.style.transform='scale(1)';"
+                            title="クリックで${nextRoleText}に変更"
+                        >
+                            ${roleText}
+                        </button>
+                    </div>
+                    <div class="admin-item-meta">
+                        <span>📅 ${createdAt}</span>
+                    </div>
+                    <div class="admin-item-actions">
+                        <button onclick="window.deleteUserAccount('${u.id}', '${escapeHtml(displayName)}')" class="btn-action delete">削除</button>
+                    </div>
                 </div>
-            </div>
+                `;
+            }).join('')}
         </div>
     `;
 }
