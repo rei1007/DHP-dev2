@@ -102,8 +102,12 @@ export async function requireAuth() {
 
 // ユーザー情報をusersテーブルに登録または更新
 async function ensureUserInDatabase(authUser) {
+    console.log('🔧 [ensureUserInDatabase] Starting...');
+    console.log('🔧 [ensureUserInDatabase] authUser:', authUser);
+    
     try {
         const client = await getSupabaseClient();
+        console.log('🔧 [ensureUserInDatabase] Supabase client obtained');
         
         // Discordから取得したユーザー情報
         const username = authUser.user_metadata?.full_name || 
@@ -122,6 +126,7 @@ async function ensureUserInDatabase(authUser) {
         });
         
         // 既存のユーザーをチェック
+        console.log('🔍 Checking for existing user...');
         const { data: existingUser, error: fetchError } = await client
             .from('users')
             .select('*')
@@ -129,54 +134,82 @@ async function ensureUserInDatabase(authUser) {
             .maybeSingle();
         
         if (fetchError && fetchError.code !== 'PGRST116') {
-            console.error('Error checking existing user:', fetchError);
+            console.error('❌ Error checking existing user:', fetchError);
+            console.error('❌ Error details:', JSON.stringify(fetchError, null, 2));
+            alert('ユーザー確認エラー: ' + fetchError.message);
             throw fetchError;
         }
         
+        console.log('🔍 Existing user check result:', existingUser);
+        
         if (existingUser) {
             // 既存ユーザーの情報を更新
-            console.log('Updating existing user...');
-            const { error: updateError } = await client
+            console.log('🔄 Updating existing user...');
+            const updateData = {
+                email: authUser.email,
+                username: username,
+                avatar_url: avatarUrl,
+                updated_at: new Date().toISOString()
+            };
+            console.log('🔄 Update data:', updateData);
+            
+            const { data: updateResult, error: updateError } = await client
                 .from('users')
-                .update({
-                    email: authUser.email,
-                    username: username,
-                    avatar_url: avatarUrl,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', authUser.id);
+                .update(updateData)
+                .eq('id', authUser.id)
+                .select();
             
             if (updateError) {
-                console.error('Error updating user:', updateError);
+                console.error('❌ Error updating user:', updateError);
+                console.error('❌ Error details:', JSON.stringify(updateError, null, 2));
+                alert('ユーザー更新エラー: ' + updateError.message);
                 throw updateError;
             }
             
-            console.log('✅ User updated successfully');
+            console.log('✅ User updated successfully:', updateResult);
         } else {
             // 新規ユーザーを登録（デフォルトロール: pending）
-            console.log('Creating new user with pending role...');
-            const { error: insertError } = await client
+            console.log('➕ Creating new user with pending role...');
+            const insertData = {
+                id: authUser.id,
+                email: authUser.email,
+                username: username,
+                avatar_url: avatarUrl,
+                role: 'pending',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            console.log('➕ Insert data:', insertData);
+            
+            const { data: insertResult, error: insertError } = await client
                 .from('users')
-                .insert([{
-                    id: authUser.id,
-                    email: authUser.email,
-                    username: username,
-                    avatar_url: avatarUrl,
-                    role: 'pending',
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                }]);
+                .insert([insertData])
+                .select();
             
             if (insertError) {
-                console.error('Error creating user:', insertError);
+                console.error('❌ Error creating user:', insertError);
+                console.error('❌ Error details:', JSON.stringify(insertError, null, 2));
+                console.error('❌ Error code:', insertError.code);
+                console.error('❌ Error message:', insertError.message);
+                console.error('❌ Error hint:', insertError.hint);
+                console.error('❌ Error details:', insertError.details);
+                alert('ユーザー作成エラー: ' + insertError.message + '\n詳細はコンソールを確認してください');
                 throw insertError;
             }
             
-            console.log('✅ New user created successfully with pending role');
+            console.log('✅ New user created successfully:', insertResult);
         }
+        
+        console.log('🔧 [ensureUserInDatabase] Completed successfully');
     } catch (err) {
-        console.error('Failed to ensure user in database:', err);
+        console.error('❌❌❌ Failed to ensure user in database:', err);
+        console.error('❌❌❌ Error stack:', err.stack);
         // エラーが発生してもログインは継続
+        // しかし、エラーの詳細をユーザーに通知
+        if (!err.message.includes('already exists')) {
+            // 重複エラー以外はアラート表示
+            console.error('❌ CRITICAL ERROR - User not saved to database!');
+        }
     }
 }
 
