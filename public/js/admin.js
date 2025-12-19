@@ -1,7 +1,7 @@
 
 
 // Standalone Admin Logic
-import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml } from './common.js';
+import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, getWhitelist, addToWhitelist, deleteFromWhitelist, escapeHtml } from './common.js';
 import { requireAuth, logout, getCurrentUser } from './auth.js';
 
 // Stage List (Splatoon 3)
@@ -74,6 +74,9 @@ async function loadTab(tab) {
     } else if (tab === 'news') {
         title.textContent = 'お知らせ管理';
         await renderNews(content);
+    } else if (tab === 'whitelist') {
+        title.textContent = 'ホワイトリスト管理';
+        await renderWhitelist(content);
     } 
 }
 
@@ -918,3 +921,150 @@ function openNewsModal(data = null) {
         });
     };
 }
+
+// ==========================================
+// Whitelist Management
+// ==========================================
+
+async function renderWhitelist(container) {
+    const whitelist = await getWhitelist();
+    
+    container.innerHTML = `
+        <div style="margin-bottom:20px;">
+            <p style="color:#666; margin-bottom:15px;">
+                運営ダッシュボードへのアクセスを許可するDiscordアカウントを管理します。<br>
+                ここに登録されたユーザーのみが大会・お知らせの編集を行えます。
+            </p>
+            <button class="btn-primary" style="font-size:0.9rem; padding:10px 24px; border-radius:100px; cursor:pointer; background:#1e3799; color:#fff; border:none; box-shadow:0 4px 10px rgba(30,55,153,0.3);" id="btnAddWhitelist">＋ 管理者を追加</button>
+        </div>
+        <div class="admin-item-grid">
+            ${whitelist.map(w => {
+                const addedDate = w.addedAt ? new Date(w.addedAt).toLocaleString('ja-JP') : '-';
+                const roleLabel = w.role === 'admin' ? '管理者' : w.role;
+                
+                return `
+                <div class="admin-item-card">
+                    <div class="admin-item-header">
+                        <div style="flex:1;">
+                            <div class="admin-item-title">${escapeHtml(w.name || '名前未設定')}</div>
+                            <div style="margin-top:5px;">
+                                <span class="badge info" style="font-size:0.8rem;">${escapeHtml(roleLabel)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="admin-item-meta" style="display:flex; flex-direction:column; gap:5px;">
+                        <span>🎮 Discord ID: ${escapeHtml(w.discordId || '-')}</span>
+                        <span style="font-size:0.85rem; color:#999;">登録日: ${escapeHtml(addedDate)}</span>
+                        ${w.addedBy ? `<span style="font-size:0.85rem; color:#666;">👤 登録者: ${escapeHtml(w.addedBy)}</span>` : ''}
+                        ${w.notes ? `<span style="font-size:0.85rem; color:#666;">📝 ${escapeHtml(w.notes)}</span>` : ''}
+                    </div>
+                    <div class="admin-item-actions">
+                        <button onclick="window.deleteWhitelistItem(${w.id}, '${escapeHtml(w.name || 'このユーザー')}')" class="btn-action delete">削除</button>
+                    </div>
+                </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const btn = document.getElementById('btnAddWhitelist');
+        if(btn) btn.onclick = () => openAddWhitelistForm();
+    }, 0);
+}
+
+// 管理者追加フォームを表示
+function openAddWhitelistForm() {
+    const container = document.getElementById('contentArea');
+    const title = document.getElementById('pageTitle');
+    
+    title.textContent = 'ホワイトリスト管理 > 管理者を追加';
+    
+    container.innerHTML = `
+        <div class="admin-card" style="max-width:600px;">
+            <div class="card-header">新しい管理者を追加</div>
+            <form id="formAddWhitelist" style="padding:20px;">
+                <div class="form-group">
+                    <label class="form-label">名前 *</label>
+                    <input type="text" name="name" class="form-input" required placeholder="例: 山田太郎">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Discord ID *</label>
+                    <input type="text" name="discordId" class="form-input" required placeholder="Discord IDを入力">
+                    <small style="color:#666; font-size:0.85rem; display:block; margin-top:5px;">
+                        <strong>Discord IDの取得方法:</strong><br>
+                        1. Discord設定 > 詳細設定 > 開発者モードを有効化<br>
+                        2. 対象ユーザーのアイコンを右クリック > IDをコピー
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">役割</label>
+                    <select name="role" class="form-input">
+                        <option value="admin">管理者</option>
+                        <option value="operator">運営者</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">メモ（任意）</label>
+                    <textarea name="notes" class="form-input" rows="3" placeholder="追加理由やその他のメモ"></textarea>
+                </div>
+                
+                <div class="modal-actions" style="display:flex; gap:10px; margin-top:30px;">
+                    <button type="submit" class="btn-primary" style="background:#1e3799; color:#fff; padding:10px 40px; border-radius:100px; font-weight:bold;">追加</button>
+                    <button type="button" onclick="loadTab('whitelist')" class="btn-secondary" style="background:#fff; color:#666; padding:10px 40px; border-radius:100px; border:2px solid #ddd; font-weight:bold;">キャンセル</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    const form = document.getElementById('formAddWhitelist');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        const discordId = fd.get('discordId').trim();
+        
+        if (!discordId) {
+            alert('Discord IDを入力してください');
+            return;
+        }
+        
+        const currentUser = await getCurrentUser();
+        const addedBy = currentUser?.user_metadata?.name || currentUser?.user_metadata?.full_name || currentUser?.email || '不明';
+        
+        const whitelistData = {
+            name: fd.get('name').trim(),
+            discordId: discordId,
+            role: fd.get('role'),
+            notes: fd.get('notes').trim() || null,
+            addedBy: addedBy
+        };
+        
+        try {
+            await addToWhitelist(whitelistData);
+            alert('管理者を追加しました');
+            await loadTab('whitelist');
+        } catch (err) {
+            console.error('Add whitelist error:', err);
+            alert('追加に失敗しました: ' + err.message);
+        }
+    };
+}
+
+// ホワイトリストから削除
+window.deleteWhitelistItem = async (id, name) => {
+    if(!confirm(`「${name}」をホワイトリストから削除しますか？\n\nこのユーザーは運営ダッシュボードにアクセスできなくなります。`)) return;
+    
+    try {
+        await deleteFromWhitelist(id);
+        alert('削除しました');
+        await loadTab('whitelist');
+    } catch (err) {
+        console.error('Delete whitelist error:', err);
+        alert('削除に失敗しました: ' + err.message);
+    }
+};
+

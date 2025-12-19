@@ -84,14 +84,66 @@ export async function getCurrentUser() {
     }
 }
 
+// ホワイトリストチェック: ユーザーが管理者として登録されているかを確認
+export async function checkWhitelist(user) {
+    try {
+        const client = await getSupabaseClient();
+        
+        // Discord ID（provider_id）でチェック
+        const discordId = user.user_metadata?.provider_id || user.user_metadata?.sub;
+        
+        if (!discordId) {
+            console.error('❌ Discord ID not found in user metadata');
+            return false;
+        }
+        
+        console.log('🔍 Checking whitelist for Discord ID:', discordId);
+        
+        const { data, error } = await client
+            .from('admin_whitelist')
+            .select('*')
+            .eq('discord_id', discordId)
+            .maybeSingle();
+        
+        if (error) {
+            console.error('❌ Whitelist check error:', error);
+            return false;
+        }
+        
+        if (!data) {
+            console.warn('⚠️ User not in whitelist');
+            return false;
+        }
+        
+        console.log('✅ User is whitelisted:', data);
+        return true;
+    } catch (err) {
+        console.error('❌ Whitelist check failed:', err);
+        return false;
+    }
+}
+
 // 認証が必要なページ用: ログインしていない場合はlogin.htmlにリダイレクト
-export async function requireAuth() {
+// ホワイトリストチェックも実行
+export async function requireAuth(skipWhitelistCheck = false) {
     const user = await getCurrentUser();
     
     if (!user) {
         console.log('User not authenticated, redirecting to login...');
         window.location.href = 'login.html';
         return null;
+    }
+    
+    // ホワイトリストチェック（オプション）
+    if (!skipWhitelistCheck) {
+        const isWhitelisted = await checkWhitelist(user);
+        
+        if (!isWhitelisted) {
+            console.log('User not in whitelist, redirecting to unauthorized page...');
+            // 未承認ページにリダイレクト
+            window.location.href = 'unauthorized.html';
+            return null;
+        }
     }
     
     return user;

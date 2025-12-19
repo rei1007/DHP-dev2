@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アクセス権限がありません | 大学杯</title>
+    <link rel="stylesheet" href="css/common.css">
+    <style>
+        body {
+            background: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(30, 55, 153, 0.05) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(246, 185, 59, 0.05) 0%, transparent 20%);
+        }
+
+        .unauthorized-card {
+            background: #fff;
+            width: 100%;
+            max-width: 500px;
+            padding: 50px 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .unauthorized-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .unauthorized-title {
+            font-family: var(--f-serif);
+            font-size: 1.8rem;
+            color: var(--c-primary-dark);
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .unauthorized-message {
+            color: #666;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            line-height: 1.7;
+        }
+
+        .user-info {
+            background: rgba(30, 55, 153, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 25px 0;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .user-info strong {
+            color: var(--c-primary);
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 14px 30px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--c-primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--c-primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 55, 153, 0.3);
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: var(--c-primary);
+            border: 2px solid var(--c-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(30, 55, 153, 0.05);
+        }
+
+        .contact-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            font-size: 0.85rem;
+            color: #999;
+        }
+
+        .contact-info a {
+            color: var(--c-primary);
+            text-decoration: none;
+        }
+
+        .contact-info a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="unauthorized-card">
+        <div class="unauthorized-icon">🔒</div>
+        <h1 class="unauthorized-title">アクセス権限がありません</h1>
+
+        <p class="unauthorized-message">
+            運営ダッシュボードへのアクセスには、事前に承認されたDiscordアカウントが必要です。
+        </p>
+
+        <div class="user-info" id="userInfo">
+            <div>ログイン中: <strong id="userName">取得中...</strong></div>
+            <div style="margin-top: 5px; font-size: 0.85rem; color: #666;" id="userEmail"></div>
+        </div>
+
+        <p class="unauthorized-message" style="font-size: 0.9rem;">
+            このアカウントは現在ホワイトリストに登録されていません。<br>
+            運営チームへの参加を希望される場合は、以下の連絡先までお問い合わせください。
+        </p>
+
+        <div class="btn-group">
+            <a href="index.html" class="btn btn-primary">トップページに戻る</a>
+            <button onclick="handleLogout()" class="btn btn-secondary">ログアウト</button>
+        </div>
+
+        <div class="contact-info">
+            お問い合わせ: <a href="mailto:contact@example.com">contact@example.com</a><br>
+            または Discord: <a href="https://discord.gg/example" target="_blank">公式サーバー</a>
+        </div>
+    </div>
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script type="module">
+        import { getCurrentUser, logout } from './js/auth.js';
+
+        window.handleLogout = async () => {
+            await logout();
+        };
+
+        // ユーザー情報を表示
+        (async () => {
+            try {
+                const user = await getCurrentUser();
+                if (user) {
+                    const username = user.user_metadata?.full_name || user.user_metadata?.name || 'ユーザー';
+                    const discordId = user.user_metadata?.provider_id || user.user_metadata?.sub || '';
+
+                    document.getElementById('userName').textContent = username;
+
+                    if (discordId) {
+                        document.getElementById('userEmail').textContent = `Discord ID: ${discordId}`;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to get user info:', err);
+            }
+        })();
+    </script>
+</body>
+
+</html>
