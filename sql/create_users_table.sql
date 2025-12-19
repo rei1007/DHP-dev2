@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT,
     username TEXT,
     avatar_url TEXT,
-    role TEXT DEFAULT 'user',
+    role TEXT DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -58,6 +58,17 @@ CREATE POLICY "Users can insert own data"
     FOR INSERT
     WITH CHECK (auth.uid() = id);
 
+-- 運営ロールを持つユーザーはユーザーを削除可能
+CREATE POLICY "Admins can delete users"
+    ON users
+    FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
+
 -- ==========================================
 -- トリガー: updated_atの自動更新
 -- ==========================================
@@ -87,6 +98,6 @@ COMMENT ON COLUMN users.id IS 'ユーザーの一意識別子（UUID）';
 COMMENT ON COLUMN users.email IS 'ユーザーのメールアドレス';
 COMMENT ON COLUMN users.username IS 'ユーザー名（Discord認証時に取得）';
 COMMENT ON COLUMN users.avatar_url IS 'ユーザーのアバター画像URL';
-COMMENT ON COLUMN users.role IS 'ユーザーのロール（user: 一般ユーザー、admin: 運営）';
+COMMENT ON COLUMN users.role IS 'ユーザーのロール（pending: 未承認、admin: 運営）';
 COMMENT ON COLUMN users.created_at IS 'アカウント作成日時';
 COMMENT ON COLUMN users.updated_at IS '最終更新日時';

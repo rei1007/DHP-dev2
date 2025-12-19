@@ -3,7 +3,13 @@
 ## 概要
 
 運営ダッシュボードにアカウント管理機能を追加しました。
-現段階では、すべてのアカウントが運営ダッシュボードにアクセスできますが、将来的には運営ロールを持つアカウントのみがアクセスできるように制限できます。
+
+### 機能概要
+
+- **自動登録**: Discord 認証でログイン時、自動的に users テーブルにユーザー情報が登録されます
+- **ロール管理**: ユーザーは「未承認」または「運営」のロールを持ちます
+- **アクセス制御**: 現段階では、すべての認証済みアカウントが運営ダッシュボードにアクセスできます
+- **将来の実装**: 最終的には運営ロールを持つアカウントのみがアクセスできるように制限します
 
 ## 必要な Supabase テーブル構造
 
@@ -17,7 +23,7 @@ CREATE TABLE users (
     email TEXT,
     username TEXT,
     avatar_url TEXT,
-    role TEXT DEFAULT 'user',
+    role TEXT DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -29,13 +35,13 @@ CREATE INDEX idx_users_role ON users(role);
 
 #### カラム説明:
 
-- `id`: ユーザーの一意識別子（UUID）
+- `id`: ユーザーの一意識別子（UUID） - Supabase Auth のユーザーと同じ ID
 - `email`: ユーザーのメールアドレス
-- `username`: ユーザー名（Discord 認証時に取得）
-- `avatar_url`: ユーザーのアバター画像 URL（Discord 認証時に取得）
-- `role`: ユーザーのロール（`'user'` または `'admin'`）
-  - `'user'`: 一般ユーザー（デフォルト）
-  - `'admin'`: 運営ロール（運営ダッシュボードへのアクセス権限）
+- `username`: ユーザー名（Discord 認証時に自動取得）
+- `avatar_url`: ユーザーのアバター画像 URL（Discord 認証時に自動取得）
+- `role`: ユーザーのロール
+  - `'pending'`: 未承認（デフォルト）- 新規登録時の初期状態
+  - `'admin'`: 運営 - 運営ダッシュボードへのフルアクセス権限
 - `created_at`: アカウント作成日時
 - `updated_at`: 最終更新日時
 
@@ -47,7 +53,6 @@ CREATE INDEX idx_users_role ON users(role);
 -- RLSを有効化
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
--- すべての認証済みユーザーが自分のレコードを読み取り可能
 CREATE POLICY "Users can view own data"
     ON users
     FOR SELECT
@@ -78,22 +83,41 @@ CREATE POLICY "Admins can update user roles"
 
 ## 実装された機能
 
-### 1. アカウント一覧表示
+### 1. ログイン時の自動ユーザー登録
 
-- すべての登録アカウントをカード形式で表示
-- ユーザー名、メールアドレス、登録日、ロールを表示
-- アバター画像がある場合は表示、ない場合はイニシャルを表示
+- Discord 認証でログインすると、自動的に users テーブルにユーザー情報が登録されます
+- 新規ユーザーは「pending」（未承認）ロールで登録されます
+- 既存ユーザーの場合は、ユーザー名やアバター URL が自動更新されます
 
-### 2. ロール管理
+### 2. アカウント一覧表示
 
-- **運営ロール付与**: 一般ユーザーに運営ロールを付与
-- **運営ロール削除**: 運営ユーザーから運営ロールを削除
+- すべての登録アカウントをカード形式（グリッドレイアウト）で表示
+- 各カードには以下を表示:
+  - アバター画像（または頭文字のイニシャル）
+  - ユーザー名
+  - メールアドレス
+  - ロール（クリック可能なボタン）
+  - 登録日
+  - 削除ボタン
+
+### 3. ロール管理
+
+- **ロールの種類**:
+  - `pending`: 未承認（初期状態）
+  - `admin`: 運営
+- **ロール変更**: ロールボタンをクリックすると、未承認 ⇔ 運営の切り替えが可能
 - 確認ダイアログによる誤操作防止
 
-### 3. 統計情報
+### 4. アカウント削除
 
-- 運営アカウント数
-- 一般アカウント数
+- 各カードの削除ボタンからアカウント情報を削除可能
+- 削除前に確認ダイアログを表示
+- 削除は取り消し不可
+
+### 5. 統計情報
+
+- 運営アカウント数（紫グラデーション）
+- 未承認アカウント数（黄色グラデーション）
 
 ## 今後の実装予定
 
@@ -102,48 +126,38 @@ CREATE POLICY "Admins can update user roles"
 現在は、すべての認証済みユーザーが運営ダッシュボードにアクセスできます。
 最終段階では、以下の制限を追加します:
 
-1. **アクセス制限の追加** (`auth.js`の`requireAuth`関数を修正)
+1. **アクセス制限の追加** (`auth.js`の`requireAuth`関数または`ensureUserInDatabase`関数を修正)
 
    ```javascript
-   export async function requireAuth() {
-     const user = await getCurrentUser();
+   // ensureUserInDatabase関数の最後に以下を追加
+   // ユーザーのロールを確認
+   const { data: userData } = await client
+     .from("users")
+     .select("role")
+     .eq("id", authUser.id)
+     .single();
 
-     if (!user) {
-       console.log("User not authenticated, redirecting to login...");
-       window.location.href = "login.html";
-       return null;
-     }
-
-     // ユーザーのロールを確認
-     const { data: userData } = await supabaseClient
-       .from("users")
-       .select("role")
-       .eq("id", user.id)
-       .single();
-
-     // 運営ロールを持たないユーザーはアクセス不可
-     if (!userData || userData.role !== "admin") {
-       alert("運営ダッシュボードへのアクセス権限がありません");
-       window.location.href = "index.html";
-       return null;
-     }
-
-     return user;
+   // 運営ロールを持たないユーザーはアクセス不可
+   if (!userData || userData.role !== "admin") {
+     alert("運営ダッシュボードへのアクセス権限がありません");
+     window.location.href = "index.html";
+     throw new Error("Unauthorized");
    }
    ```
 
-2. **初回ログイン時のユーザー登録**
-   Discord 認証後、`users`テーブルにユーザー情報を自動登録する処理を追加
-
 ## 使い方
 
-1. 運営ダッシュボード（`admin.html`）にアクセス
-2. サイドバーから「アカウント管理」をクリック
-3. アカウント一覧が表示される
-4. 各アカウントに対して、運営ロールの付与/削除が可能
+1. 運営ダッシュボード（`admin.html`）に Discord 認証でログイン
+2. ログイン時に users テーブルに自動登録されます（初回は「未承認」ロール）
+3. サイドバーから「アカウント管理」をクリック
+4. アカウント一覧が表示される
+5. 各アカウントに対して:
+   - ロールボタンをクリックしてロール変更
+   - 削除ボタンでアカウント情報を削除
 
 ## 注意事項
 
 - 現段階では、すべての認証済みユーザーが運営ダッシュボードにアクセス可能です
 - `users`テーブルが存在しない場合、エラーが発生します
-- Supabase の管理画面で上記のテーブルを作成してください
+- Supabase の管理画面で`create_users_table.sql`を実行してテーブルを作成してください
+- アカウント削除は取り消せません

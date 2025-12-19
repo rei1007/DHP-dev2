@@ -1,7 +1,7 @@
 
 
 // Standalone Admin Logic
-import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml, getUsers, updateUserRole } from './common.js';
+import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml, getUsers, updateUserRole, deleteUser } from './common.js';
 import { requireAuth, logout, getCurrentUser } from './auth.js';
 
 // Stage List (Splatoon 3)
@@ -958,7 +958,7 @@ async function renderAccounts(container) {
     
     // ロール別にユーザーを分類
     const adminUsers = users.filter(u => u.role === 'admin');
-    const normalUsers = users.filter(u => !u.role || u.role === 'user');
+    const pendingUsers = users.filter(u => u.role === 'pending');
     
     container.innerHTML = `
         <div class="admin-card" style="margin-bottom: 30px;">
@@ -967,17 +967,17 @@ async function renderAccounts(container) {
             </div>
             <div style="padding: 20px;">
                 <p style="margin-bottom: 15px; color: #555;">
-                    このページでは、登録されているすべてのアカウントを管理できます。<br>
-                    運営ロールを付与すると、そのアカウントは運営ダッシュボードにアクセスできるようになります。
+                    登録されているすべてのアカウントを管理できます。<br>
+                    ロールをクリックして変更、削除ボタンでアカウント情報を削除できます。
                 </p>
                 <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                     <div style="flex: 1; min-width: 200px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
                         <div style="font-size: 0.9rem; opacity: 0.9;">運営アカウント</div>
                         <div style="font-size: 2rem; font-weight: bold; margin-top: 5px;">${adminUsers.length}</div>
                     </div>
-                    <div style="flex: 1; min-width: 200px; padding: 15px; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); border-radius: 12px; color: #333;">
-                        <div style="font-size: 0.9rem; opacity: 0.8;">一般アカウント</div>
-                        <div style="font-size: 2rem; font-weight: bold; margin-top: 5px;">${normalUsers.length}</div>
+                    <div style="flex: 1; min-width: 200px; padding: 15px; background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius: 12px; color: #333;">
+                        <div style="font-size: 0.9rem; opacity: 0.8;">未承認アカウント</div>
+                        <div style="font-size: 2rem; font-weight: bold; margin-top: 5px;">${pendingUsers.length}</div>
                     </div>
                 </div>
             </div>
@@ -987,72 +987,115 @@ async function renderAccounts(container) {
             <div class="card-header">
                 <span>登録アカウント一覧</span>
             </div>
-            <div class="admin-item-grid" style="padding: 20px;">
+            <div style="padding: 20px;">
                 ${users.length === 0 ? '<p style="text-align:center; color:#999; padding:40px 0;">アカウントがありません</p>' : ''}
-                ${users.map(u => {
-                    const isAdmin = u.role === 'admin';
-                    const displayName = u.username || u.email || 'ユーザー';
-                    const createdAt = u.created_at ? new Date(u.created_at).toLocaleDateString('ja-JP') : '-';
-                    
-                    return `
-                    <div class="admin-item-card">
-                        <div class="admin-item-header" style="align-items: start;">
-                            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                    ${users.map(u => {
+                        const isAdmin = u.role === 'admin';
+                        const isPending = u.role === 'pending';
+                        const displayName = u.username || u.email || 'ユーザー';
+                        const createdAt = u.created_at ? new Date(u.created_at).toLocaleDateString('ja-JP') : '-';
+                        
+                        // ロール表示とスタイル
+                        let roleText = '未承認';
+                        let roleColor = '#fdcb6e';
+                        let nextRole = 'admin';
+                        let nextRoleText = '運営';
+                        
+                        if (isAdmin) {
+                            roleText = '運営';
+                            roleColor = '#667eea';
+                            nextRole = 'pending';
+                            nextRoleText = '未承認';
+                        }
+                        
+                        return `
+                        <div class="admin-item-card" style="padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: all 0.3s;">
+                            <!-- アバターとユーザー名 -->
+                            <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 15px;">
                                 ${u.avatar_url ? 
-                                    `<img src="${escapeHtml(u.avatar_url)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;" alt="avatar">` :
-                                    `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">${displayName.charAt(0).toUpperCase()}</div>`
+                                    `<img src="${escapeHtml(u.avatar_url)}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" alt="avatar">` :
+                                    `<div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 2rem; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">${displayName.charAt(0).toUpperCase()}</div>`
                                 }
-                                <div style="flex: 1;">
-                                    <div class="admin-item-title" style="margin-bottom: 5px;">${escapeHtml(displayName)}</div>
-                                    <div class="admin-item-meta" style="font-size: 0.85rem;">
-                                        <span>📧 ${escapeHtml(u.email || '-')}</span>
-                                    </div>
-                                    <div class="admin-item-meta" style="font-size: 0.85rem;">
-                                        <span>📅 登録日: ${createdAt}</span>
-                                    </div>
+                                <div style="font-size: 1.1rem; font-weight: bold; color: #0c2461; text-align: center; margin-bottom: 5px;">
+                                    ${escapeHtml(displayName)}
+                                </div>
+                                <div style="font-size: 0.85rem; color: #666; text-align: center; margin-bottom: 10px;">
+                                    ${escapeHtml(u.email || '-')}
                                 </div>
                             </div>
-                            <span class="status-label ${isAdmin ? 'open' : ''}" style="margin-left: 10px;">
-                                ${isAdmin ? '運営' : '一般'}
-                            </span>
+                            
+                            <!-- ロール情報（クリック可能） -->
+                            <div style="text-align: center; margin-bottom: 15px;">
+                                <button 
+                                    onclick="window.toggleUserRole('${u.id}', '${nextRole}', '${escapeHtml(displayName)}', '${nextRoleText}')" 
+                                    style="
+                                        background: ${roleColor}; 
+                                        color: white; 
+                                        border: none; 
+                                        padding: 8px 20px; 
+                                        border-radius: 20px; 
+                                        font-size: 0.9rem; 
+                                        font-weight: bold; 
+                                        cursor: pointer; 
+                                        transition: all 0.3s;
+                                        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                                    "
+                                    onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';"
+                                    onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.1)';"
+                                    title="クリックで${nextRoleText}に変更"
+                                >
+                                    ${roleText}
+                                </button>
+                            </div>
+                            
+                            <!-- 登録日 -->
+                            <div style="font-size: 0.8rem; color: #999; text-align: center; margin-bottom: 15px;">
+                                📅 ${createdAt}
+                            </div>
+                            
+                            <!-- 削除ボタン -->
+                            <div style="text-align: center;">
+                                <button 
+                                    onclick="window.deleteUserAccount('${u.id}', '${escapeHtml(displayName)}')" 
+                                    class="btn-action delete"
+                                    style="width: 100%; padding: 10px; font-size: 0.9rem;"
+                                >
+                                    🗑️ アカウント削除
+                                </button>
+                            </div>
                         </div>
-                        <div class="admin-item-actions" style="margin-top: 15px;">
-                            ${isAdmin ? 
-                                `<button onclick="window.removeAdminRole('${u.id}')" class="btn-action delete">運営ロールを削除</button>` :
-                                `<button onclick="window.grantAdminRole('${u.id}')" class="btn-action edit">運営ロールを付与</button>`
-                            }
-                        </div>
-                    </div>
-                    `;
-                }).join('')}
+                        `;
+                    }).join('')}
+                </div>
             </div>
         </div>
     `;
 }
 
-// Global functions for role management
-window.grantAdminRole = async (userId) => {
-    if (!confirm('このユーザーに運営ロールを付与しますか？\n運営ダッシュボードへのアクセスが可能になります。')) return;
+// Global functions for account management
+window.toggleUserRole = async (userId, newRole, userName, newRoleText) => {
+    if (!confirm(`${userName}さんのロールを「${newRoleText}」に変更しますか？`)) return;
     
     try {
-        await updateUserRole(userId, 'admin');
-        alert('運営ロールを付与しました');
+        await updateUserRole(userId, newRole);
+        alert(`ロールを「${newRoleText}」に変更しました`);
         await loadTab('accounts');
     } catch (err) {
-        console.error('Failed to grant admin role:', err);
-        alert('運営ロールの付与に失敗しました: ' + err.message);
+        console.error('Failed to toggle user role:', err);
+        alert('ロールの変更に失敗しました: ' + err.message);
     }
 };
 
-window.removeAdminRole = async (userId) => {
-    if (!confirm('このユーザーから運営ロールを削除しますか？\n運営ダッシュボードへのアクセスができなくなります。')) return;
+window.deleteUserAccount = async (userId, userName) => {
+    if (!confirm(`${userName}さんのアカウント情報を削除しますか？\n\nこの操作は取り消せません。`)) return;
     
     try {
-        await updateUserRole(userId, 'user');
-        alert('運営ロールを削除しました');
+        await deleteUser(userId);
+        alert('アカウント情報を削除しました');
         await loadTab('accounts');
     } catch (err) {
-        console.error('Failed to remove admin role:', err);
-        alert('運営ロールの削除に失敗しました: ' + err.message);
+        console.error('Failed to delete user:', err);
+        alert('アカウント削除に失敗しました: ' + err.message);
     }
 };

@@ -458,3 +458,32 @@ export async function updateUserRole(userId, role) {
         throw e;
     }
 }
+
+// Delete user
+export async function deleteUser(userId) {
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { error } = await supabaseClient
+            .from('users')
+            .delete()
+            .eq('id', userId);
+        
+        if (error) {
+            console.error('[deleteUser] Error:', error);
+            throw error;
+        }
+        
+        console.log('[deleteUser] User deleted successfully');
+    } catch (e) {
+        console.error('[deleteUser] Error:', e);
+        alert('アカウント削除エラー: ' + e.message);
+        throw e;
+    }
+}
+
