@@ -19,21 +19,26 @@ export async function loginWithDiscord() {
     try {
         const client = await getSupabaseClient();
         
+        const redirectUrl = `${window.location.origin}/admin.html`;
+        console.log('🔐 Discord Login - Redirect URL:', redirectUrl);
+        console.log('🔐 Window origin:', window.location.origin);
+        
         const { data, error } = await client.auth.signInWithOAuth({
             provider: 'discord',
             options: {
-                redirectTo: `${window.location.origin}/admin.html`
+                redirectTo: redirectUrl
             }
         });
         
         if (error) {
-            console.error('Discord login error:', error);
+            console.error('❌ Discord login error:', error);
             throw error;
         }
         
+        console.log('✅ Discord login initiated:', data);
         return data;
     } catch (err) {
-        console.error('Login failed:', err);
+        console.error('❌ Login failed:', err);
         alert('ログインに失敗しました: ' + err.message);
         throw err;
     }
