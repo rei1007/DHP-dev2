@@ -1,7 +1,7 @@
 
 
 // Standalone Admin Logic
-import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml } from './common.js';
+import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml, getUsers, updateUserRole } from './common.js';
 import { requireAuth, logout, getCurrentUser } from './auth.js';
 
 // Stage List (Splatoon 3)
@@ -104,7 +104,10 @@ async function loadTab(tab) {
     } else if (tab === 'news') {
         title.textContent = 'お知らせ管理';
         await renderNews(content);
-    } 
+    } else if (tab === 'accounts') {
+        title.textContent = 'アカウント管理';
+        await renderAccounts(content);
+    }
 }
 
 // --- Helper Functions ---
@@ -948,3 +951,108 @@ function openNewsModal(data = null) {
         });
     };
 }
+
+// --- Accounts Logic ---
+async function renderAccounts(container) {
+    const users = await getUsers();
+    
+    // ロール別にユーザーを分類
+    const adminUsers = users.filter(u => u.role === 'admin');
+    const normalUsers = users.filter(u => !u.role || u.role === 'user');
+    
+    container.innerHTML = `
+        <div class="admin-card" style="margin-bottom: 30px;">
+            <div class="card-header">
+                <span>アカウント管理の概要</span>
+            </div>
+            <div style="padding: 20px;">
+                <p style="margin-bottom: 15px; color: #555;">
+                    このページでは、登録されているすべてのアカウントを管理できます。<br>
+                    運営ロールを付与すると、そのアカウントは運営ダッシュボードにアクセスできるようになります。
+                </p>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                        <div style="font-size: 0.9rem; opacity: 0.9;">運営アカウント</div>
+                        <div style="font-size: 2rem; font-weight: bold; margin-top: 5px;">${adminUsers.length}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 200px; padding: 15px; background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); border-radius: 12px; color: #333;">
+                        <div style="font-size: 0.9rem; opacity: 0.8;">一般アカウント</div>
+                        <div style="font-size: 2rem; font-weight: bold; margin-top: 5px;">${normalUsers.length}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-card">
+            <div class="card-header">
+                <span>登録アカウント一覧</span>
+            </div>
+            <div class="admin-item-grid" style="padding: 20px;">
+                ${users.length === 0 ? '<p style="text-align:center; color:#999; padding:40px 0;">アカウントがありません</p>' : ''}
+                ${users.map(u => {
+                    const isAdmin = u.role === 'admin';
+                    const displayName = u.username || u.email || 'ユーザー';
+                    const createdAt = u.created_at ? new Date(u.created_at).toLocaleDateString('ja-JP') : '-';
+                    
+                    return `
+                    <div class="admin-item-card">
+                        <div class="admin-item-header" style="align-items: start;">
+                            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                ${u.avatar_url ? 
+                                    `<img src="${escapeHtml(u.avatar_url)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover;" alt="avatar">` :
+                                    `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">${displayName.charAt(0).toUpperCase()}</div>`
+                                }
+                                <div style="flex: 1;">
+                                    <div class="admin-item-title" style="margin-bottom: 5px;">${escapeHtml(displayName)}</div>
+                                    <div class="admin-item-meta" style="font-size: 0.85rem;">
+                                        <span>📧 ${escapeHtml(u.email || '-')}</span>
+                                    </div>
+                                    <div class="admin-item-meta" style="font-size: 0.85rem;">
+                                        <span>📅 登録日: ${createdAt}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="status-label ${isAdmin ? 'open' : ''}" style="margin-left: 10px;">
+                                ${isAdmin ? '運営' : '一般'}
+                            </span>
+                        </div>
+                        <div class="admin-item-actions" style="margin-top: 15px;">
+                            ${isAdmin ? 
+                                `<button onclick="window.removeAdminRole('${u.id}')" class="btn-action delete">運営ロールを削除</button>` :
+                                `<button onclick="window.grantAdminRole('${u.id}')" class="btn-action edit">運営ロールを付与</button>`
+                            }
+                        </div>
+                    </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Global functions for role management
+window.grantAdminRole = async (userId) => {
+    if (!confirm('このユーザーに運営ロールを付与しますか？\n運営ダッシュボードへのアクセスが可能になります。')) return;
+    
+    try {
+        await updateUserRole(userId, 'admin');
+        alert('運営ロールを付与しました');
+        await loadTab('accounts');
+    } catch (err) {
+        console.error('Failed to grant admin role:', err);
+        alert('運営ロールの付与に失敗しました: ' + err.message);
+    }
+};
+
+window.removeAdminRole = async (userId) => {
+    if (!confirm('このユーザーから運営ロールを削除しますか？\n運営ダッシュボードへのアクセスができなくなります。')) return;
+    
+    try {
+        await updateUserRole(userId, 'user');
+        alert('運営ロールを削除しました');
+        await loadTab('accounts');
+    } catch (err) {
+        console.error('Failed to remove admin role:', err);
+        alert('運営ロールの削除に失敗しました: ' + err.message);
+    }
+};

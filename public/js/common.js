@@ -391,3 +391,70 @@ export function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// ==========================================
+// User Management Functions
+// ==========================================
+
+// Get all users (with role information)
+export async function getUsers() {
+    console.log('[getUsers] Called');
+    
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        // usersテーブルからユーザー情報を取得
+        const { data, error } = await supabaseClient
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('[getUsers] Error:', error);
+            throw error;
+        }
+        
+        console.log('[getUsers] Fetched', data?.length || 0, 'users');
+        return data || [];
+    } catch (e) {
+        console.error('[getUsers] Error:', e);
+        alert('ユーザーデータ取得エラー: ' + e.message);
+        return [];
+    }
+}
+
+// Update user role
+export async function updateUserRole(userId, role) {
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('users')
+            .update({ role: role })
+            .eq('id', userId)
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('[updateUserRole] Error:', error);
+            throw error;
+        }
+        
+        console.log('[updateUserRole] Updated user role:', data);
+        return data;
+    } catch (e) {
+        console.error('[updateUserRole] Error:', e);
+        alert('ロール更新エラー: ' + e.message);
+        throw e;
+    }
+}
