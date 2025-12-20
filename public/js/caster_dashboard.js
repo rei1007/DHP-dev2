@@ -33,11 +33,14 @@ async function initPage() {
 
         console.log('✅ User authenticated:', currentUser);
 
-        // ユーザー情報を表示
+        // ユーザー情報を表示（初期状態）
         displayUserInfo();
 
         // 実況解説者データをロード
         await loadCasterData();
+
+        // ユーザー情報を再表示（castersデータを反映）
+        displayUserInfo();
 
         // 武器グリッドを初期化
         initWeaponGrid();
@@ -52,22 +55,46 @@ async function initPage() {
     }
 }
 
-// ユーザー情報を表示
+// ユーザー情報を表示（ヘッダー部分）
 function displayUserInfo() {
-    const username = currentUser.user_metadata?.full_name || 
-                     currentUser.user_metadata?.name || 
-                     currentUser.email?.split('@')[0] || 
-                     'ユーザー';
-    const avatarUrl = currentUser.user_metadata?.avatar_url || 
-                     currentUser.user_metadata?.picture;
+    // 初期表示はDiscordの情報を使用
+    const discordUsername = currentUser.user_metadata?.full_name || 
+                           currentUser.user_metadata?.name || 
+                           currentUser.email?.split('@')[0] || 
+                           'ユーザー';
+    const discordAvatarUrl = currentUser.user_metadata?.avatar_url || 
+                            currentUser.user_metadata?.picture;
 
-    document.getElementById('userNameDisplay').textContent = username;
+    // ヘッダーに表示する名前とアイコン
+    let displayName = '未設定';
+    let displayIconUrl = null;
+
+    // castersデータがある場合は、そちらを優先
+    if (currentCaster) {
+        displayName = currentCaster.name || '未設定';
+        
+        // アイコンの優先順位: url > discord > なし
+        if (currentCaster.icon_type === 'url' && currentCaster.icon_url) {
+            displayIconUrl = currentCaster.icon_url;
+        } else if (currentCaster.icon_type === 'discord' || !currentCaster.icon_type) {
+            displayIconUrl = currentCaster.discord_avatar_url || discordAvatarUrl;
+        }
+    } else {
+        // castersデータがない場合はDiscordの情報を使用
+        displayIconUrl = discordAvatarUrl;
+    }
+
+    document.getElementById('userNameDisplay').textContent = displayName;
 
     const avatarEl = document.getElementById('userAvatar');
-    if (avatarUrl) {
-        avatarEl.style.backgroundImage = `url(${avatarUrl})`;
+    if (displayIconUrl) {
+        avatarEl.style.backgroundImage = `url(${displayIconUrl})`;
+        avatarEl.style.backgroundSize = 'cover';
+        avatarEl.style.backgroundPosition = 'center';
+        avatarEl.textContent = '';
     } else {
-        avatarEl.textContent = username.charAt(0).toUpperCase();
+        avatarEl.textContent = displayName.charAt(0).toUpperCase();
+        avatarEl.style.backgroundImage = '';
     }
 }
 
