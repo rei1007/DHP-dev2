@@ -40,12 +40,12 @@ function renderTitle(tournament) {
     let rulesHtml = '';
     if (tournament.rules && Array.isArray(tournament.rules)) {
         const ruleImageMap = {
-            'ナワバリバトル': 'assets/weapon/ルール_ナワバリバトル.png',
-            'ガチエリア': 'assets/weapon/ルール_ガチエリア.png',
-            'ガチヤグラ': 'assets/weapon/ルール_ガチヤグラ.png',
-            'ガチホコバトル': 'assets/weapon/ルール_ガチホコ.png',
-            'ガチホコ': 'assets/weapon/ルール_ガチホコ.png',
-            'ガチアサリ': 'assets/weapon/ルール_ガチアサリ.png'
+            'ナワバリバトル': 'assets/rules/ルール_ナワバリバトル.png',
+            'ガチエリア': 'assets/rules/ルール_ガチエリア.png',
+            'ガチヤグラ': 'assets/rules/ルール_ガチヤグラ.png',
+            'ガチホコバトル': 'assets/rules/ルール_ガチホコ.png',
+            'ガチホコ': 'assets/rules/ルール_ガチホコ.png',
+            'ガチアサリ': 'assets/rules/ルール_ガチアサリ.png'
         };
         
         rulesHtml = '<div class="rule-icons-inline">';

@@ -44,6 +44,37 @@ export async function loginWithDiscord() {
     }
 }
 
+// Discordでログイン (実況解説者用)
+export async function loginWithDiscordForCaster() {
+    try {
+        const client = await getSupabaseClient();
+        
+        const redirectUrl = `${window.location.origin}/caster_dashboard.html`;
+        console.log('🔐 Caster Discord Login - Redirect URL:', redirectUrl);
+        console.log('🔐 Window origin:', window.location.origin);
+        
+        const { data, error } = await client.auth.signInWithOAuth({
+            provider: 'discord',
+            options: {
+                redirectTo: redirectUrl
+            }
+        });
+        
+        if (error) {
+            console.error('❌ Discord login error:', error);
+            throw error;
+        }
+        
+        console.log('✅ Caster Discord login initiated:', data);
+        return data;
+    } catch (err) {
+        console.error('❌ Caster login failed:', err);
+        alert('ログインに失敗しました: ' + err.message);
+        throw err;
+    }
+}
+
+
 // ログアウト
 export async function logout() {
     try {
@@ -96,6 +127,22 @@ export async function requireAuth() {
     
     // ユーザー情報をusersテーブルに登録/更新
     await ensureUserInDatabase(user);
+    
+    return user;
+}
+
+// 実況解説者認証用: ログインしていない場合はlogin.htmlにリダイレクト
+export async function requireCasterAuth() {
+    const user = await getCurrentUser();
+    
+    if (!user) {
+        console.log('Caster not authenticated, redirecting to login...');
+        window.location.href = 'login.html';
+        return null;
+    }
+    
+    // 実況解説者情報をcastersテーブルに登録/確認
+    await ensureCasterInDatabase(user);
     
     return user;
 }
@@ -246,6 +293,87 @@ async function ensureUserInDatabase(authUser) {
         if (!err.message.includes('already exists')) {
             console.error('❌ CRITICAL ERROR - User not saved to database!');
         }
+    }
+}
+
+// 実況解説者情報をcastersテーブルに登録または更新
+async function ensureCasterInDatabase(authUser) {
+    console.log('🎙️ [ensureCasterInDatabase] Starting...');
+    console.log('🎙️ [ensureCasterInDatabase] authUser:', authUser);
+    
+    try {
+        const client = await getSupabaseClient();
+        console.log('🎙️ [ensureCasterInDatabase] Supabase client obtained');
+        
+        // Discordから取得したユーザー情報
+        const username = authUser.user_metadata?.full_name || 
+                        authUser.user_metadata?.name || 
+                        authUser.email?.split('@')[0] || 
+                        'ユーザー';
+        const discordAvatarUrl = authUser.user_metadata?.avatar_url || 
+                                 authUser.user_metadata?.picture || 
+                                 null;
+        
+        console.log('🎙️ Ensuring caster in database:', {
+            id: authUser.id,
+            email: authUser.email,
+            username,
+            discordAvatarUrl
+        });
+        
+        // 既存の実況解説者をチェック
+        console.log('🔍 Checking for existing caster...');
+        const { data: existingCaster, error: fetchError } = await client
+            .from('casters')
+            .select('*')
+            .eq('user_id', authUser.id)
+            .maybeSingle();
+        
+        if (fetchError && fetchError.code !== 'PGRST116') {
+            console.error('❌ Error checking existing caster:', fetchError);
+            console.error('❌ Error details:', JSON.stringify(fetchError, null, 2));
+            alert('実況解説者確認エラー: ' + fetchError.message);
+            throw fetchError;
+        }
+        
+        console.log('🔍 Existing caster check result:', existingCaster);
+        
+        if (!existingCaster) {
+            // 新規実況解説者を登録
+            console.log('➕ Creating new caster...');
+            const insertData = {
+                user_id: authUser.id,
+                name: username,
+                icon_type: 'discord',
+                discord_avatar_url: discordAvatarUrl,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+            console.log('➕ Insert data:', insertData);
+            
+            const { data: insertResult, error: insertError } = await client
+                .from('casters')
+                .insert([insertData])
+                .select();
+            
+            if (insertError) {
+                console.error('❌ Error creating caster:', insertError);
+                console.error('❌ Error details:', JSON.stringify(insertError, null, 2));
+                alert('実況解説者作成エラー: ' + insertError.message + '\n詳細はコンソールを確認してください');
+                throw insertError;
+            }
+            
+            console.log('✅ New caster created successfully:', insertResult);
+        } else {
+            console.log('✅ Caster already exists:', existingCaster);
+        }
+        
+        console.log('🎙️ [ensureCasterInDatabase] Completed successfully');
+        
+    } catch (err) {
+        console.error('❌❌❌ Failed to ensure caster in database:', err);
+        console.error('❌❌❌ Error stack:', err.stack);
+        throw err;
     }
 }
 

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>実況解説者ダッシュボード | 大学杯</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/caster_dashboard.css">
+    <link rel="icon" href="assets/favicon.ico">
+
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        .u-hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body class="caster-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+            <h1>実況解説者</h1>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" class="sidebar-link active" data-tab="profile">プロフィール設定</a>
+            <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:10px 0;">
+            <a href="#" class="sidebar-link" onclick="handleLogout()">ログアウト</a>
+        </nav>
+        <div style="margin-top:auto; font-size:0.8rem; opacity:0.6; padding-top:20px;">
+            dev.1.1
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <h2 id="pageTitle" style="font-size:1.5rem; font-weight:700; color:var(--c-primary-dark);">プロフィール設定</h2>
+            <div class="user-info">
+                <span class="badge caster"
+                    style="margin-right:10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">実況解説者</span>
+                <div class="user-avatar" id="userAvatar"></div>
+                <div class="user-name" id="userNameDisplay">ユーザー</div>
+            </div>
+        </header>
+
+        <!-- Content Area -->
+        <div id="contentArea">
+            <!-- Profile Form -->
+            <div class="profile-card">
+                <div class="card-header">
+                    <h3>基本情報</h3>
+                </div>
+                <div class="card-body">
+                    <form id="profileForm">
+                        <!-- 名前 -->
+                        <div class="form-group">
+                            <label class="form-label required">名前</label>
+                            <input type="text" id="casterName" class="form-input" placeholder="実況解説者としての名前" required>
+                        </div>
+
+                        <!-- アイコン画像設定 -->
+                        <div class="form-group">
+                            <label class="form-label required">アイコン画像設定</label>
+                            <div class="icon-preview-container">
+                                <div class="icon-preview" id="iconPreview">
+                                    <span class="icon-preview-placeholder">プレビュー</span>
+                                </div>
+                            </div>
+                            <div class="radio-group">
+                                <label class="radio-card">
+                                    <input type="radio" name="iconType" value="discord" checked>
+                                    <div class="radio-content">
+                                        <div class="radio-title">Discordのアイコンを使用</div>
+                                        <div class="radio-description">ログインしたDiscordアカウントのアイコンを使用します</div>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="iconType" value="url">
+                                    <div class="radio-content">
+                                        <div class="radio-title">Xのアイコン（もしくはその他URL）</div>
+                                        <div class="radio-description">画像のURLを入力してください</div>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="iconType" value="other">
+                                    <div class="radio-content">
+                                        <div class="radio-title">その他</div>
+                                        <div class="radio-description">運営が対応します</div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="url-input-container u-hidden" id="urlInputContainer">
+                                <input type="url" id="iconUrl" class="form-input"
+                                    placeholder="https://example.com/icon.png">
+                            </div>
+                            <div class="info-message u-hidden" id="otherIconMessage">
+                                運営の方で対応しますので、ご希望のアイコンについて下記「運営に伝えておきたいこと」欄に記載してください。
+                            </div>
+                        </div>
+
+                        <!-- XアカウントID -->
+                        <div class="form-group">
+                            <label class="form-label required">XアカウントID</label>
+                            <div class="input-with-prefix">
+                                <span class="input-prefix">@</span>
+                                <input type="text" id="xAccountId" class="form-input" placeholder="username" required>
+                            </div>
+                        </div>
+
+                        <!-- YoutubeアカウントID -->
+                        <div class="form-group">
+                            <label class="form-label">YoutubeアカウントID（任意）</label>
+                            <div class="input-with-prefix">
+                                <span class="input-prefix">@</span>
+                                <input type="text" id="youtubeAccountId" class="form-input" placeholder="channelname">
+                            </div>
+                        </div>
+
+                        <!-- 各ルールの最高XP -->
+                        <div class="form-group">
+                            <label class="form-label">各ガチルールの最高XP（任意）</label>
+                            <div class="xp-grid">
+                                <div class="xp-input-group">
+                                    <label>エリア</label>
+                                    <input type="number" id="xpArea" class="form-input" placeholder="0" min="0"
+                                        max="9999">
+                                </div>
+                                <div class="xp-input-group">
+                                    <label>ホコ</label>
+                                    <input type="number" id="xpYagura" class="form-input" placeholder="0" min="0"
+                                        max="9999">
+                                </div>
+                                <div class="xp-input-group">
+                                    <label>ヤグラ</label>
+                                    <input type="number" id="xpHoko" class="form-input" placeholder="0" min="0"
+                                        max="9999">
+                                </div>
+                                <div class="xp-input-group">
+                                    <label>アサリ</label>
+                                    <input type="number" id="xpAsari" class="form-input" placeholder="0" min="0"
+                                        max="9999">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- モチブキ -->
+                        <div class="form-group">
+                            <label class="form-label required">モチブキ（最大3つ、1つは必須）</label>
+                            <div class="weapon-inputs">
+                                <input type="text" id="weapon1" class="form-input" placeholder="1つ目（必須）" required>
+                                <input type="text" id="weapon2" class="form-input" placeholder="2つ目（任意）">
+                                <input type="text" id="weapon3" class="form-input" placeholder="3つ目（任意）">
+                            </div>
+                        </div>
+
+                        <!-- 大会実績 -->
+                        <div class="form-group">
+                            <label class="form-label">大会実績（任意、最大3つ）</label>
+                            <div class="achievement-inputs">
+                                <textarea id="achievement1" class="form-textarea" placeholder="1つ目の実績"
+                                    rows="2"></textarea>
+                                <textarea id="achievement2" class="form-textarea" placeholder="2つ目の実績"
+                                    rows="2"></textarea>
+                                <textarea id="achievement3" class="form-textarea" placeholder="3つ目の実績"
+                                    rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 実況解説実績 -->
+                        <div class="form-group">
+                            <label class="form-label">実況解説実績（任意、最大3つ）</label>
+                            <div class="casting-inputs">
+                                <textarea id="casting1" class="form-textarea" placeholder="1つ目の実績" rows="2"></textarea>
+                                <textarea id="casting2" class="form-textarea" placeholder="2つ目の実績" rows="2"></textarea>
+                                <textarea id="casting3" class="form-textarea" placeholder="3つ目の実績" rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 運営への伝達事項 -->
+                        <div class="form-group">
+                            <label class="form-label">運営に伝えておきたいことや配慮事項など（任意）</label>
+                            <textarea id="notes" class="form-textarea" placeholder="運営に伝えておきたいことがあればご記入ください"
+                                rows="4"></textarea>
+                        </div>
+
+                        <!-- 保存ボタン -->
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary" id="saveBtn">
+                                保存する
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script type="module" src="js/caster_dashboard.js"></script>
+</body>
+
+</html>
