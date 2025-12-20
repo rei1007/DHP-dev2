@@ -4,10 +4,12 @@
 
 import { requireCasterAuth, getCurrentUser, logout } from './auth.js';
 import { initSupabaseClient } from './common.js';
+import { WEAPONS } from './weapons-data.js';
 
 let supabaseClient = null;
 let currentUser = null;
 let currentCaster = null;
+let selectedWeapons = []; // 選択された武器（最大3つ）
 
 // Supabaseクライアントを取得
 async function getSupabaseClient() {
@@ -36,6 +38,9 @@ async function initPage() {
 
         // 実況解説者データをロード
         await loadCasterData();
+
+        // 武器グリッドを初期化
+        initWeaponGrid();
 
         // イベントリスナーを設定
         setupEventListeners();
@@ -135,11 +140,10 @@ function populateForm(caster) {
     if (caster.xp_asari) document.getElementById('xpAsari').value = caster.xp_asari;
 
     // モチブキ
-    if (caster.main_weapons) {
-        const weapons = caster.main_weapons;
-        if (weapons[0]) document.getElementById('weapon1').value = weapons[0];
-        if (weapons[1]) document.getElementById('weapon2').value = weapons[1];
-        if (weapons[2]) document.getElementById('weapon3').value = weapons[2];
+    if (caster.main_weapons && Array.isArray(caster.main_weapons)) {
+        selectedWeapons = [...caster.main_weapons];
+        updateSelectedWeaponsPreview();
+        updateWeaponGridSelection();
     }
 
     // 大会実績
@@ -164,6 +168,107 @@ function populateForm(caster) {
     }
 }
 
+// 武器グリッドを初期化
+function initWeaponGrid() {
+    const grid = document.getElementById('weaponGrid');
+    
+    grid.innerHTML = WEAPONS.map(weapon => `
+        <div class="weapon-item" data-weapon-id="${weapon.id}" onclick="toggleWeaponSelection('${weapon.id}')">
+            <img src="assets/weapons/${weapon.image}" alt="${weapon.name}" onerror="this.src='assets/placeholder.png'">
+            <div class="weapon-name">${weapon.name}</div>
+        </div>
+    `).join('');
+}
+
+// 武器選択をトグル
+window.toggleWeaponSelection = function(weaponId) {
+    const index = selectedWeapons.indexOf(weaponId);
+    
+    if (index > -1) {
+        // 既に選択されている場合は削除
+        selectedWeapons.splice(index, 1);
+    } else {
+        // 新規選択
+        if (selectedWeapons.length >= 3) {
+            alert('モチブキは最大3つまで選択できます。');
+            return;
+        }
+        selectedWeapons.push(weaponId);
+    }
+    
+    updateSelectedWeaponsPreview();
+    updateWeaponGridSelection();
+};
+
+// 選択された武器のプレビューを更新
+function updateSelectedWeaponsPreview() {
+    const preview = document.getElementById('selectedWeaponsPreview');
+    
+    if (selectedWeapons.length === 0) {
+        preview.innerHTML = '<p style="color: #999; font-size: 0.9rem;">武器が選択されていません</p>';
+        return;
+    }
+    
+    preview.innerHTML = selectedWeapons.map((weaponId, index) => {
+        const weapon = WEAPONS.find(w => w.id === weaponId);
+        if (!weapon) return '';
+        
+        return `
+            <div class="selected-weapon-card">
+                <span style="font-weight: bold; color: #1e3799;">${index + 1}</span>
+                <img src="assets/weapons/${weapon.image}" alt="${weapon.name}">
+                <span>${weapon.name}</span>
+                <span class="remove-btn" onclick="removeWeapon('${weaponId}')">×</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// 武器グリッドの選択状態を更新
+function updateWeaponGridSelection() {
+    const items = document.querySelectorAll('.weapon-item');
+    items.forEach(item => {
+        const weaponId = item.dataset.weaponId;
+        const index = selectedWeapons.indexOf(weaponId);
+        
+        if (index > -1) {
+            item.classList.add('selected');
+            // 選択順を表示
+            if (!item.querySelector('.selection-badge')) {
+                const badge = document.createElement('div');
+                badge.className = 'selection-badge';
+                badge.textContent = index + 1;
+                item.appendChild(badge);
+            } else {
+                item.querySelector('.selection-badge').textContent = index + 1;
+            }
+        } else {
+            item.classList.remove('selected');
+            const badge = item.querySelector('.selection-badge');
+            if (badge) badge.remove();
+        }
+    });
+}
+
+// 武器を削除
+window.removeWeapon = function(weaponId) {
+    const index = selectedWeapons.indexOf(weaponId);
+    if (index > -1) {
+        selectedWeapons.splice(index, 1);
+        updateSelectedWeaponsPreview();
+        updateWeaponGridSelection();
+    }
+};
+
+// 武器グリッドの表示/非表示をトグル
+window.toggleWeaponGrid = function() {
+    const container = document.getElementById('weaponGridContainer');
+    const icon = document.getElementById('weaponAccordionIcon');
+    
+    container.classList.toggle('u-hidden');
+    icon.textContent = container.classList.contains('u-hidden') ? '▼' : '▲';
+};
+
 // イベントリスナーを設定
 function setupEventListeners() {
     // アイコンタイプ変更
@@ -180,6 +285,11 @@ function setupEventListeners() {
         updateIconPreview();
     });
 
+    // 武器検索
+    document.getElementById('weaponSearch').addEventListener('input', (e) => {
+        filterWeapons(e.target.value);
+    });
+
     // フォーム送信
     document.getElementById('profileForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -187,20 +297,29 @@ function setupEventListeners() {
     });
 }
 
+// 武器をフィルタリング
+function filterWeapons(searchTerm) {
+    const items = document.querySelectorAll('.weapon-item');
+    const term = searchTerm.toLowerCase();
+    
+    items.forEach(item => {
+        const weaponName = item.querySelector('.weapon-name').textContent.toLowerCase();
+        if (weaponName.includes(term)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
 // アイコンタイプUIを更新
 function updateIconTypeUI(iconType) {
     const urlInputContainer = document.getElementById('urlInputContainer');
-    const otherIconMessage = document.getElementById('otherIconMessage');
 
     if (iconType === 'url') {
         urlInputContainer.classList.remove('u-hidden');
-        otherIconMessage.classList.add('u-hidden');
-    } else if (iconType === 'other') {
-        urlInputContainer.classList.add('u-hidden');
-        otherIconMessage.classList.remove('u-hidden');
     } else {
         urlInputContainer.classList.add('u-hidden');
-        otherIconMessage.classList.add('u-hidden');
     }
 }
 
@@ -254,11 +373,6 @@ async function saveProfile() {
         const xpHoko = document.getElementById('xpHoko').value || null;
         const xpAsari = document.getElementById('xpAsari').value || null;
 
-        const weapon1 = document.getElementById('weapon1').value.trim();
-        const weapon2 = document.getElementById('weapon2').value.trim();
-        const weapon3 = document.getElementById('weapon3').value.trim();
-        const mainWeapons = [weapon1, weapon2, weapon3].filter(w => w);
-
         const achievement1 = document.getElementById('achievement1').value.trim();
         const achievement2 = document.getElementById('achievement2').value.trim();
         const achievement3 = document.getElementById('achievement3').value.trim();
@@ -286,8 +400,8 @@ async function saveProfile() {
             return;
         }
 
-        if (mainWeapons.length === 0) {
-            alert('モチブキを最低1つ入力してください。');
+        if (selectedWeapons.length === 0) {
+            alert('モチブキを最低1つ選択してください。');
             saveBtn.disabled = false;
             saveBtn.textContent = '保存する';
             return;
@@ -310,7 +424,7 @@ async function saveProfile() {
             xp_yagura: xpYagura ? parseInt(xpYagura) : null,
             xp_hoko: xpHoko ? parseInt(xpHoko) : null,
             xp_asari: xpAsari ? parseInt(xpAsari) : null,
-            main_weapons: mainWeapons,
+            main_weapons: selectedWeapons,
             tournament_achievements: tournamentAchievements.length > 0 ? tournamentAchievements : null,
             casting_history: castingHistory.length > 0 ? castingHistory : null,
             notes_to_staff: notes || null,

@@ -408,9 +408,9 @@ export async function getUsers() {
     }
     
     try {
-        // usersテーブルからユーザー情報を取得
+        // adminsテーブルから運営ユーザー情報を取得
         const { data, error } = await supabaseClient
-            .from('users')
+            .from('admins')
             .select('*')
             .order('created_at', { ascending: false });
         
@@ -439,7 +439,7 @@ export async function updateUserRole(userId, role) {
     
     try {
         const { data, error } = await supabaseClient
-            .from('users')
+            .from('admins')
             .update({ role: role })
             .eq('id', userId)
             .select()
@@ -470,7 +470,7 @@ export async function deleteUser(userId) {
     
     try {
         const { error } = await supabaseClient
-            .from('users')
+            .from('admins')
             .delete()
             .eq('id', userId);
         
@@ -483,6 +483,101 @@ export async function deleteUser(userId) {
     } catch (e) {
         console.error('[deleteUser] Error:', e);
         alert('アカウント削除エラー: ' + e.message);
+        throw e;
+    }
+}
+
+// ==========================================
+// Caster Management Functions (運営用)
+// ==========================================
+
+// Get all casters (for admin use)
+export async function getCasters() {
+    console.log('[getCasters] Called');
+    
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        // castersテーブルから全実況解説者情報を取得（運営メモ含む）
+        const { data, error } = await supabaseClient
+            .from('casters')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('[getCasters] Error:', error);
+            throw error;
+        }
+        
+        console.log('[getCasters] Fetched', data?.length || 0, 'casters');
+        return data || [];
+    } catch (e) {
+        console.error('[getCasters] Error:', e);
+        alert('実況解説者データ取得エラー: ' + e.message);
+        return [];
+    }
+}
+
+// Update caster information (for admin use)
+export async function updateCaster(casterId, updates) {
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('casters')
+            .update(updates)
+            .eq('id', casterId)
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('[updateCaster] Error:', error);
+            throw error;
+        }
+        
+        console.log('[updateCaster] Updated caster:', data);
+        return data;
+    } catch (e) {
+        console.error('[updateCaster] Error:', e);
+        alert('実況解説者情報更新エラー: ' + e.message);
+        throw e;
+    }
+}
+
+// Delete caster (for admin use)
+export async function deleteCaster(casterId) {
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { error } = await supabaseClient
+            .from('casters')
+            .delete()
+            .eq('id', casterId);
+        
+        if (error) {
+            console.error('[deleteCaster] Error:', error);
+            throw error;
+        }
+        
+        console.log('[deleteCaster] Caster deleted successfully');
+    } catch (e) {
+        console.error('[deleteCaster] Error:', e);
+        alert('実況解説者削除エラー: ' + e.message);
         throw e;
     }
 }

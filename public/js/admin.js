@@ -1,7 +1,7 @@
 
 
 // Standalone Admin Logic
-import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml, getUsers, updateUserRole, deleteUser } from './common.js';
+import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml, getUsers, updateUserRole, deleteUser, getCasters, updateCaster, deleteCaster } from './common.js';
 import { requireAuth, logout, getCurrentUser } from './auth.js';
 
 // Stage List (Splatoon 3)
@@ -74,6 +74,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const cNews = document.getElementById('closeNewsModal');
     if(cNews) cNews.onclick = () => document.getElementById('newsModal').classList.add('u-hidden');
+    
+    const cCaster = document.getElementById('closeCasterModal');
+    if(cCaster) cCaster.onclick = () => document.getElementById('casterModal').classList.add('u-hidden');
 });
 
 // --- Routing ---
@@ -1056,3 +1059,249 @@ window.deleteUserAccount = async (userId, userName) => {
         alert('アカウント削除に失敗しました: ' + err.message);
     }
 };
+
+// --- Accounts Management Logic ---
+async function renderAccounts(container) {
+    const admins = await getUsers(); // 運営アカウント
+    const casters = await getCasters(); // 実況解説者アカウント
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 30px;">
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--c-primary-dark); margin-bottom: 15px;">運営アカウント管理</h3>
+            <div class="admin-item-grid">
+                ${admins.map(user => `
+                    <div class="admin-item-card">
+                        <div class="admin-item-header">
+                            <div class="admin-item-title">${escapeHtml(user.username || user.email)}</div>
+                            <span class="badge ${user.role === 'admin' ? 'info' : 'warning'}">${user.role === 'admin' ? '運営' : user.role}</span>
+                        </div>
+                        <div class="admin-item-meta">
+                            <span>📧 ${escapeHtml(user.email)}</span>
+                        </div>
+                        <div class="admin-item-meta">
+                            <span>🕒 登録日: ${new Date(user.created_at).toLocaleDateString('ja-JP')}</span>
+                        </div>
+                        <div class="admin-item-actions">
+                            <select onchange="window.changeUserRole('${user.id}', this.value)" class="form-input" style="flex: 1;">
+                                <option value="pending" ${user.role === 'pending' ? 'selected' : ''}>保留中</option>
+                                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>運営</option>
+                            </select>
+                            <button onclick="window.deleteAdminUser('${user.id}')" class="btn-action delete">削除</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 30px;">
+            <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--c-primary-dark); margin-bottom: 15px;">実況解説者アカウント管理</h3>
+            <div class="admin-item-grid">
+                ${casters.map(caster => {
+                    const iconUrl = caster.icon_type === 'discord' ? caster.discord_avatar_url : 
+                                   caster.icon_type === 'url' ? caster.icon_url : null;
+                    
+                    return `
+                        <div class="admin-item-card" style="cursor: pointer;" onclick="window.editCaster('${caster.id}')">
+                            <div class="admin-item-header">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    ${iconUrl ? `<img src="${escapeHtml(iconUrl)}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` : '🎙️'}
+                                    <div class="admin-item-title">${escapeHtml(caster.name)}</div>
+                                </div>
+                                <span class="badge caster" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">実況解説者</span>
+                            </div>
+                            <div class="admin-item-meta">
+                                <span>🐦 @${escapeHtml(caster.x_account_id || '-')}</span>
+                            </div>
+                            <div class="admin-item-meta">
+                                <span>🎮 モチブキ: ${caster.main_weapons ? caster.main_weapons.slice(0, 2).join(', ') + (caster.main_weapons.length > 2 ? '...' : '') : 'なし'}</span>
+                            </div>
+                            <div class="admin-item-meta">
+                                <span>🕒 登録日: ${new Date(caster.created_at).toLocaleDateString('ja-JP')}</span>
+                            </div>
+                            <div class="admin-item-actions" onclick="event.stopPropagation()">
+                                <button onclick="window.editCaster('${caster.id}')" class="btn-action edit">編集</button>
+                                <button onclick="window.deleteCasterAccount('${caster.id}')" class="btn-action delete">削除</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// 運営アカウントのロール変更
+window.changeUserRole = async (userId, newRole) => {
+    if (!confirm(`このユーザーのロールを「${newRole}」に変更しますか？`)) {
+        await loadTab('accounts'); // リロードして選択をリセット
+        return;
+    }
+    
+    try {
+        await updateUserRole(userId, newRole);
+        alert('ロールを更新しました');
+        await loadTab('accounts');
+    } catch (err) {
+        console.error('Failed to change role:', err);
+        alert('ロール変更に失敗しました: ' + err.message);
+        await loadTab('accounts');
+    }
+};
+
+// 運営アカウント削除
+window.deleteAdminUser = async (userId) => {
+    if (!confirm('このアカウントを削除しますか？')) return;
+    
+    try {
+        await deleteUser(userId);
+        alert('アカウントを削除しました');
+        await loadTab('accounts');
+    } catch (err) {
+        console.error('Failed to delete user:', err);
+        alert('アカウント削除に失敗しました: ' + err.message);
+    }
+};
+
+// 実況解説者編集
+window.editCaster = async (casterId) => {
+    const casters = await getCasters();
+    const caster = casters.find(c => c.id === casterId);
+    if (!caster) return;
+    
+    await openCasterModal(caster);
+};
+
+// 実況解説者削除
+window.deleteCasterAccount = async (casterId) => {
+    if (!confirm('この実況解説者アカウントを削除しますか？')) return;
+    
+    try {
+        await deleteCaster(casterId);
+        alert('実況解説者アカウントを削除しました');
+        await loadTab('accounts');
+    } catch (err) {
+        console.error('Failed to delete caster:', err);
+        alert('アカウント削除に失敗しました: ' + err.message);
+    }
+};
+
+// 実況解説者編集モーダルを開く
+async function openCasterModal(caster) {
+    const modal = document.getElementById('casterModal');
+    const container = document.getElementById('casterFormContainer');
+    
+    // 大会一覧を取得
+    const tournaments = await getTournaments();
+    
+    // 選択済みの大会履歴
+    const selectedHistory = caster.tournament_history || [];
+    
+    container.innerHTML = `
+        <form id="formCaster">
+            <div class="form-group">
+                <label class="form-label">名前</label>
+                <input type="text" name="name" class="form-input" value="${escapeHtml(caster.name)}" readonly style="background: #f5f5f5;">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">XアカウントID</label>
+                <input type="text" name="x_account_id" class="form-input" value="${escapeHtml(caster.x_account_id || '')}" readonly style="background: #f5f5f5;">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">モチブキ</label>
+                <input type="text" class="form-input" value="${caster.main_weapons ? caster.main_weapons.join(', ') : 'なし'}" readonly style="background: #f5f5f5;">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">大会実績</label>
+                ${caster.tournament_achievements && caster.tournament_achievements.length > 0 ? 
+                    caster.tournament_achievements.map((ach, i) => `
+                        <div style="margin-bottom: 5px;">
+                            <input type="text" class="form-input" value="${escapeHtml(ach)}" readonly style="background: #f5f5f5;">
+                        </div>
+                    `).join('') : 
+                    '<p style="color: #999;">なし</p>'
+                }
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">実況解説実績</label>
+                ${caster.casting_history && caster.casting_history.length > 0 ? 
+                    caster.casting_history.map((ch, i) => `
+                        <div style="margin-bottom: 5px;">
+                            <input type="text" class="form-input" value="${escapeHtml(ch)}" readonly style="background: #f5f5f5;">
+                        </div>
+                    `).join('') : 
+                    '<p style="color: #999;">なし</p>'
+                }
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">運営への伝達事項</label>
+                <textarea class="form-input" readonly style="background: #f5f5f5; resize: vertical;" rows="3">${escapeHtml(caster.notes_to_staff || '')}</textarea>
+            </div>
+            
+            <hr style="margin: 20px 0; border: 0; border-top: 2px solid #e0e0e0;">
+            
+            <h4 style="color: var(--c-primary-dark); margin-bottom: 15px;">運営専用フィールド</h4>
+            
+            <div class="form-group box-light">
+                <label class="form-label">運営メモ（実況解説者本人は閲覧不可）</label>
+                <textarea name="staff_notes" class="form-input" placeholder="運営内部での共有事項など..." rows="4" style="resize: vertical;">${escapeHtml(caster.staff_notes || '')}</textarea>
+            </div>
+            
+            <div class="form-group box-light">
+                <label class="form-label">大学杯実況解説履歴</label>
+                <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: white;">
+                    ${tournaments.map(t => `
+                        <label style="display: flex; align-items: center; padding: 8px; margin-bottom: 5px; border-radius: 4px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                            <input type="checkbox" name="tournament_history" value="${t.id}" ${selectedHistory.includes(t.id) ? 'checked' : ''} style="margin-right: 10px;">
+                            <div>
+                                <div style="font-weight: 600;">${escapeHtml(t.name || t.title)}</div>
+                                <div style="font-size: 0.85rem; color: #666;">${t.eventDate ? new Date(t.eventDate).toLocaleDateString('ja-JP') : '日時未定'} - ${getStatusLabel(t.status)}</div>
+                            </div>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="submit" class="btn-primary" style="background:#1e3799; color:#fff; padding:10px 40px; border-radius:100px; font-weight:bold;">保存</button>
+            </div>
+        </form>
+    `;
+    
+    modal.classList.remove('u-hidden');
+    
+    // モーダルクローズイベント
+    const closeBtn = document.getElementById('closeCasterModal');
+    closeBtn.onclick = () => modal.classList.add('u-hidden');
+    
+    // フォーム送信
+    const form = document.getElementById('formCaster');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        // 選択された大会履歴を取得
+        const historyCheckboxes = form.querySelectorAll('input[name="tournament_history"]:checked');
+        const tournamentHistory = Array.from(historyCheckboxes).map(cb => parseInt(cb.value));
+        
+        const updates = {
+            staff_notes: fd.get('staff_notes') || null,
+            tournament_history: tournamentHistory.length > 0 ? tournamentHistory : null,
+            updated_at: new Date().toISOString()
+        };
+        
+        try {
+            await updateCaster(caster.id, updates);
+            alert('実況解説者情報を更新しました');
+            modal.classList.add('u-hidden');
+            await loadTab('accounts');
+        } catch (err) {
+            console.error('Failed to update caster:', err);
+            alert('更新に失敗しました: ' + err.message);
+        }
+    };
+}

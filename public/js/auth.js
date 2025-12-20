@@ -147,7 +147,7 @@ export async function requireCasterAuth() {
     return user;
 }
 
-// ユーザー情報をusersテーブルに登録または更新
+// ユーザー情報をadminsテーブルに登録または更新
 async function ensureUserInDatabase(authUser) {
     console.log('🔧 [ensureUserInDatabase] Starting...');
     console.log('🔧 [ensureUserInDatabase] authUser:', authUser);
@@ -175,7 +175,7 @@ async function ensureUserInDatabase(authUser) {
         // 既存のユーザーをチェック
         console.log('🔍 Checking for existing user...');
         const { data: existingUser, error: fetchError } = await client
-            .from('users')
+            .from('admins')
             .select('*')
             .eq('id', authUser.id)
             .maybeSingle();
@@ -201,7 +201,7 @@ async function ensureUserInDatabase(authUser) {
             console.log('🔄 Update data:', updateData);
             
             const { data: updateResult, error: updateError } = await client
-                .from('users')
+                .from('admins')
                 .update(updateData)
                 .eq('id', authUser.id)
                 .select();
@@ -229,7 +229,7 @@ async function ensureUserInDatabase(authUser) {
             console.log('➕ Insert data:', insertData);
             
             const { data: insertResult, error: insertError } = await client
-                .from('users')
+                .from('admins')
                 .insert([insertData])
                 .select();
             
@@ -256,7 +256,7 @@ async function ensureUserInDatabase(authUser) {
         
         // ユーザーのロールを再取得して確認
         const { data: userRole, error: roleError } = await client
-            .from('users')
+            .from('admins')
             .select('role')
             .eq('id', authUser.id)
             .single();
