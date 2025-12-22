@@ -118,6 +118,25 @@
         </div>
     </div>
 
+    <!-- Admin User Edit Modal -->
+    <div id="adminUserModal" class="modal u-hidden"
+        style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:flex; align-items:center; justify-content:center;">
+        <div class="admin-card"
+            style="width:90%; max-width:500px; max-height:90vh; overflow-y:auto; position:relative;">
+            <button id="closeAdminUserModal" class="modal-close-btn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <div class="card-header">
+                <span id="adminUserModalTitle">運営アカウント編集</span>
+            </div>
+            <div id="adminUserFormContainer"></div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script type="module" src="js/admin.js"></script>
 </body>
