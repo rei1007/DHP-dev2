@@ -274,8 +274,8 @@ async function renderTournaments(container) {
                         ` : ''}
                     </div>
                     
-                    <div class="admin-item-actions" style="margin-top:15px;">
-                        <button onclick="window.editTour('${t.id}'); event.stopPropagation();" class="btn-action edit">編集</button>
+                    <div class="admin-item-actions" style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button onclick="window.editTour('${t.id}'); event.stopPropagation();" class="btn-action edit" style="flex: 1;">編集</button>
                         <button onclick="window.deleteTour('${t.id}'); event.stopPropagation();" class="btn-action delete">削除</button>
                     </div>
                 </div>
@@ -328,8 +328,8 @@ async function renderNews(container) {
                     <div class="admin-item-meta">
                         <span style="font-family:var(--f-eng);">📅 ${n.publishedAt || n.date}</span>
                     </div>
-                    <div class="admin-item-actions">
-                        <button onclick="window.editNews('${n.id}')" class="btn-action edit">編集</button>
+                    <div class="admin-item-actions" style="display: flex; gap: 8px; margin-top: 12px;">
+                        <button onclick="window.editNews('${n.id}')" class="btn-action edit" style="flex: 1;">編集</button>
                         <button onclick="window.deleteNews('${n.id}')" class="btn-action delete">削除</button>
                     </div>
                 </div>
@@ -629,56 +629,95 @@ function openTourModal(data = null) {
     
     // ===== オートコンプリート機能の実装 =====
     setTimeout(async () => {
-        // 過去の大会データから実況・解説者の情報を取得（統合）
-        const tours = await getTournaments();
         const staffMembers = []; // 実況・解説を統合した配列
+        let currentIndex = 0;
         
-        // 古い順に処理して、最新のデータで上書きする
-        // getTournaments()は新しい順（ID降順）なので、逆順にする
+        // 1. 実況解説者情報テーブル(casters)からデータを取得（優先）
+        try {
+            const casters = await getCasters();
+            casters.forEach(caster => {
+                if (caster.name) {
+                    // アイコンURLの決定
+                    let iconUrl = null;
+                    if (caster.icon_type === 'discord') {
+                        iconUrl = caster.discord_avatar_url;
+                    } else if (caster.icon_type === 'url') {
+                        iconUrl = caster.icon_url;
+                    }
+                    
+                    staffMembers.push({
+                        name: caster.name,
+                        icon: iconUrl || '',
+                        xId: caster.x_account_id ? `@${caster.x_account_id}` : '',
+                        ytUrl: caster.youtube_account_id ? `https://www.youtube.com/@${caster.youtube_account_id}` : '',
+                        source: 'casters_db', // データソースを識別
+                        _index: currentIndex++
+                    });
+                }
+            });
+        } catch (err) {
+            console.error('Failed to load casters for autocomplete:', err);
+        }
+        
+        // 2. 過去の大会データから実況・解説者の情報を取得
+        const tours = await getTournaments();
         const toursReversed = [...tours].reverse();
         
         // 実況と解説の両方から情報を収集
         toursReversed.forEach(t => {
-            // 実況者の情報を追加/更新
+            // 実況者の情報を追加
             if (t.caster && t.caster.name) {
-                // 既に同じ情報のエントリのインデックスを探す
-                const duplicateIndex = staffMembers.findIndex(s => 
-                    s.name === t.caster.name && 
-                    s.icon === t.caster.icon && 
-                    s.xId === t.caster.xId && 
-                    s.ytUrl === t.caster.ytUrl
+                // castersテーブルと同じ名前のエントリがあるか確認
+                const existsInCastersDb = staffMembers.some(s => 
+                    s.source === 'casters_db' && s.name === t.caster.name
                 );
                 
-                if (duplicateIndex !== -1) {
-                    // 既存のエントリを削除
-                    staffMembers.splice(duplicateIndex, 1);
+                // castersテーブルにない、または異なる情報の場合のみ追加
+                if (!existsInCastersDb) {
+                    const duplicateIndex = staffMembers.findIndex(s => 
+                        s.source === 'tournament' &&
+                        s.name === t.caster.name && 
+                        s.icon === t.caster.icon && 
+                        s.xId === t.caster.xId && 
+                        s.ytUrl === t.caster.ytUrl
+                    );
+                    
+                    if (duplicateIndex === -1) {
+                        staffMembers.push({
+                            ...t.caster,
+                            source: 'tournament', // データソースを識別
+                            _index: currentIndex++
+                        });
+                    }
                 }
-                // 最新のデータを追加
-                staffMembers.push({ ...t.caster, _index: staffMembers.length });
             }
             
-            // 解説者の情報を追加/更新
+            // 解説者の情報を追加
             if (t.commentator && t.commentator.name) {
-                // 既に同じ情報のエントリのインデックスを探す
-                const duplicateIndex = staffMembers.findIndex(s => 
-                    s.name === t.commentator.name && 
-                    s.icon === t.commentator.icon && 
-                    s.xId === t.commentator.xId && 
-                    s.ytUrl === t.commentator.ytUrl
+                // castersテーブルと同じ名前のエントリがあるか確認
+                const existsInCastersDb = staffMembers.some(s => 
+                    s.source === 'casters_db' && s.name === t.commentator.name
                 );
                 
-                if (duplicateIndex !== -1) {
-                    // 既存のエントリを削除
-                    staffMembers.splice(duplicateIndex, 1);
+                // castersテーブルにない、または異なる情報の場合のみ追加
+                if (!existsInCastersDb) {
+                    const duplicateIndex = staffMembers.findIndex(s => 
+                        s.source === 'tournament' &&
+                        s.name === t.commentator.name && 
+                        s.icon === t.commentator.icon && 
+                        s.xId === t.commentator.xId && 
+                        s.ytUrl === t.commentator.ytUrl
+                    );
+                    
+                    if (duplicateIndex === -1) {
+                        staffMembers.push({
+                            ...t.commentator,
+                            source: 'tournament', // データソースを識別
+                            _index: currentIndex++
+                        });
+                    }
                 }
-                // 最新のデータを追加
-                staffMembers.push({ ...t.commentator, _index: staffMembers.length });
             }
-        });
-        
-        // インデックスを再割り当て
-        staffMembers.forEach((member, idx) => {
-            member._index = idx;
         });
         
         // オートコンプリート設定関数（配列版）
@@ -713,15 +752,24 @@ function openTourModal(data = null) {
                 suggestionsDiv.innerHTML = matches.map(person => {
                     let detailText = '';
                     if (person.xId) {
-                        detailText = ` (${person.xId})`;
+                        detailText = ` ${person.xId}`;
                     } else if (person.ytUrl) {
                         detailText = ' (YouTube)';
                     }
                     
+                    // データソースのバッジ
+                    const sourceBadge = person.source === 'casters_db' 
+                        ? '<span style="display: inline-block; padding: 2px 6px; background: #27ae60; color: white; font-size: 0.7rem; border-radius: 3px; margin-left: 6px;">実況解説者DB</span>'
+                        : '<span style="display: inline-block; padding: 2px 6px; background: #95a5a6; color: white; font-size: 0.7rem; border-radius: 3px; margin-left: 6px;">過去大会</span>';
+                    
                     return `
-                        <div class="autocomplete-item" data-index="${person._index}">
-                            ${person.icon ? `<img src="${escapeHtml(person.icon)}" style="width:24px; height:24px; border-radius:50%; object-fit:cover; margin-right:8px;">` : ''}
-                            <span>${escapeHtml(person.name)}${escapeHtml(detailText)}</span>
+                        <div class="autocomplete-item" data-index="${person._index}" style="display: flex; align-items: center; padding: 8px; cursor: pointer; border-bottom: 1px solid #f0f0f0;">
+                            ${person.icon ? `<img src="${escapeHtml(person.icon)}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; margin-right:10px; flex-shrink: 0;">` : '<div style="width:32px; height:32px; border-radius:50%; background: #ddd; margin-right:10px; flex-shrink: 0;"></div>'}
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; font-size: 0.9rem;">${escapeHtml(person.name)}</div>
+                                ${detailText ? `<div style="font-size: 0.75rem; color: #666; margin-top: 2px;">${escapeHtml(detailText)}</div>` : ''}
+                            </div>
+                            ${sourceBadge}
                         </div>
                     `;
                 }).join('');
@@ -956,132 +1004,136 @@ function openNewsModal(data = null) {
     };
 }
 
-// --- Accounts Management Logic ---
 async function renderAccounts(container) {
     const admins = await getUsers(); // 運営アカウント
     const casters = await getCasters(); // 実況解説者アカウント
     
     container.innerHTML = `
-        <div class="admin-card" style="margin-bottom: 20px;">
-            <div class="card-header" style="padding: 15px 20px;">
-                <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--c-primary-dark); margin: 0;">アカウント管理</h3>
+        <div style="margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--c-primary-dark); margin: 0;">アカウント管理</h2>
             </div>
-            <div class="card-body" style="padding: 0;">
-                <div class="account-tabs" style="display: flex; border-bottom: 2px solid #e0e0e0;">
-                    <button class="account-tab active" data-tab="admins" onclick="window.switchAccountTab('admins')" 
-                        style="flex: 1; padding: 15px; border: none; background: transparent; font-weight: 600; color: var(--c-primary); border-bottom: 3px solid var(--c-primary); cursor: pointer; transition: all 0.2s;">
-                        運営アカウント
-                    </button>
-                    <button class="account-tab" data-tab="casters" onclick="window.switchAccountTab('casters')" 
-                        style="flex: 1; padding: 15px; border: none; background: transparent; font-weight: 600; color: #999; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s;">
-                        実況解説者アカウント
-                    </button>
+            
+            <div class="account-tabs" style="display: flex; gap: 12px; border-bottom: 2px solid #e0e0e0; margin-bottom: 24px;">
+                <button class="account-tab active" data-tab="admins" onclick="window.switchAccountTab('admins')" 
+                    style="padding: 12px 24px; border: none; background: transparent; font-weight: 600; font-size: 0.95rem; color: var(--c-primary); border-bottom: 3px solid var(--c-primary); cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
+                    運営アカウント
+                </button>
+                <button class="account-tab" data-tab="casters" onclick="window.switchAccountTab('casters')" 
+                    style="padding: 12px 24px; border: none; background: transparent; font-weight: 600; font-size: 0.95rem; color: #999; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
+                    実況解説者アカウント
+                </button>
+            </div>
+            
+            <div id="adminsTab" class="tab-pane active" style="display: block;">
+                <div class="admin-item-grid">
+                    ${admins.map(user => {
+                        // Discord avatar URLを取得
+                        const avatarUrl = user.discord_avatar_url || null;
+                        
+                        return `
+                        <div class="admin-item-card" style="position: relative;">
+                            <div class="admin-item-header" style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
+                                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                                    ${avatarUrl ? 
+                                        `<img src="${escapeHtml(avatarUrl)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : 
+                                        `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0;">${escapeHtml((user.username || user.email).charAt(0).toUpperCase())}</div>`
+                                    }
+                                    <div class="admin-item-title" style="font-size: 1rem; font-weight: 600;">${escapeHtml(user.username || user.email)}</div>
+                                </div>
+                                <span class="badge ${user.role === 'admin' ? 'info' : 'warning'}" style="position: absolute; top: 10px; right: 10px;">${user.role === 'admin' ? '運営' : '保留中'}</span>
+                            </div>
+                            <div class="admin-item-meta" style="margin-bottom: 8px;">
+                                <span style="font-size: 0.85rem; color: #666;">🕒 登録日: ${new Date(user.created_at).toLocaleDateString('ja-JP')}</span>
+                            </div>
+                            <div class="admin-item-actions" style="display: flex; gap: 8px; margin-top: 12px;">
+                                <button onclick="window.editAdminUser('${user.id}')" class="btn-action edit" style="flex: 1;">編集</button>
+                                <button onclick="window.deleteAdminUser('${user.id}')" class="btn-action delete">削除</button>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
                 </div>
-                <div class="account-tab-content" style="padding: 20px;">
-                    <div id="adminsTab" class="tab-pane active" style="display: block;">
-                        <div class="admin-item-grid">
-                            ${admins.map(user => {
-                                // Discord avatar URLを取得
-                                const avatarUrl = user.discord_avatar_url || null;
-                                
-                                return `
-                                <div class="admin-item-card" style="position: relative;">
+            </div>
+            
+            <div id="castersTab" class="tab-pane" style="display: none;">
+                <div class="admin-item-grid">
+                    ${casters.map(caster => {
+                        const iconUrl = caster.icon_type === 'discord' ? caster.discord_avatar_url : 
+                                       caster.icon_type === 'url' ? caster.icon_url : null;
+                        
+                        return `
+                            <div class="admin-item-card caster-card" data-caster-id="${caster.id}" style="cursor: pointer; position: relative;" onclick="window.toggleCasterCard('${caster.id}')">
+                                <div class="caster-card-summary">
                                     <div class="admin-item-header" style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
                                         <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                                            ${avatarUrl ? 
-                                                `<img src="${escapeHtml(avatarUrl)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : 
-                                                `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0;">${escapeHtml((user.username || user.email).charAt(0).toUpperCase())}</div>`
+                                            ${iconUrl ? 
+                                                `<img src="${escapeHtml(iconUrl)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : 
+                                                `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0;">🎙️</div>`
                                             }
-                                            <div class="admin-item-title" style="font-size: 1rem; font-weight: 600;">${escapeHtml(user.username || user.email)}</div>
+                                            <div class="admin-item-title" style="font-size: 1rem; font-weight: 600;">${escapeHtml(caster.name)}</div>
                                         </div>
-                                        <span class="badge ${user.role === 'admin' ? 'info' : 'warning'}" style="position: absolute; top: 10px; right: 10px;">${user.role === 'admin' ? '運営' : '保留中'}</span>
                                     </div>
                                     <div class="admin-item-meta" style="margin-bottom: 8px;">
-                                        <span style="font-size: 0.85rem; color: #666;">🕒 登録日: ${new Date(user.created_at).toLocaleDateString('ja-JP')}</span>
+                                        <span style="font-size: 0.85rem; color: #666;">🐦 @${escapeHtml(caster.x_account_id || '-')}</span>
                                     </div>
-                                    <div class="admin-item-actions" style="display: flex; gap: 8px; margin-top: 12px;">
-                                        <button onclick="window.editAdminUser('${user.id}')" class="btn-action edit" style="flex: 1;">編集</button>
-                                        <button onclick="window.deleteAdminUser('${user.id}')" class="btn-action delete">削除</button>
+                                    <div class="admin-item-meta" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                        <span style="font-size: 0.85rem; color: #666; margin-right: 8px;">🎮 モチブキ:</span>
+                                        ${caster.main_weapons && caster.main_weapons.length > 0 ? 
+                                            caster.main_weapons.slice(0, 3).map(weaponId => {
+                                                return `<img src="assets/weapons/${getWeaponFileName(weaponId)}" alt="${weaponId}" style="width: 32px; height: 32px; object-fit: contain;" onerror="this.style.display='none'">`;
+                                            }).join('') : 
+                                            '<span style="font-size: 0.85rem; color: #999;">なし</span>'
+                                        }
                                     </div>
                                 </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
-                    <div id="castersTab" class="tab-pane" style="display: none;">
-                        <div class="admin-item-grid">
-                            ${casters.map(caster => {
-                                const iconUrl = caster.icon_type === 'discord' ? caster.discord_avatar_url : 
-                                               caster.icon_type === 'url' ? caster.icon_url : null;
-                                
-                                return `
-                                    <div class="admin-item-card caster-card" data-caster-id="${caster.id}" style="cursor: pointer; position: relative;" onclick="window.toggleCasterCard('${caster.id}')">
-                                        <div class="caster-card-summary">
-                                            <div class="admin-item-header" style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
-                                                <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-                                                    ${iconUrl ? 
-                                                        `<img src="${escapeHtml(iconUrl)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : 
-                                                        `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0;">🎙️</div>`
-                                                    }
-                                                    <div class="admin-item-title" style="font-size: 1rem; font-weight: 600;">${escapeHtml(caster.name)}</div>
-                                                </div>
+                                <div class="caster-card-details" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
+                                    <div style="margin-bottom: 12px;">
+                                        <div style="font-weight: 600; font-size: 0.9rem; color: var(--c-primary-dark); margin-bottom: 8px;">各ルールの最高XP</div>
+                                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                                                <img src="assets/rules/ルール_ガチエリア.png" style="width: 24px; height: 24px; object-fit: contain;">
+                                                <span style="font-size: 0.85rem;">${caster.xp_area || '-'}</span>
                                             </div>
-                                            <div class="admin-item-meta" style="margin-bottom: 8px;">
-                                                <span style="font-size: 0.85rem; color: #666;">🐦 @${escapeHtml(caster.x_account_id || '-')}</span>
+                                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                                                <img src="assets/rules/ルール_ガチヤグラ.png" style="width: 24px; height: 24px; object-fit: contain;">
+                                                <span style="font-size: 0.85rem;">${caster.xp_yagura || '-'}</span>
                                             </div>
-                                            <div class="admin-item-meta" style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                                <span style="font-size: 0.85rem; color: #666; margin-right: 8px;">🎮 モチブキ:</span>
-                                                ${caster.main_weapons && caster.main_weapons.length > 0 ? 
-                                                    caster.main_weapons.slice(0, 3).map(weaponId => {
-                                                        return `<img src="assets/weapons/${getWeaponFileName(weaponId)}" alt="${weaponId}" style="width: 32px; height: 32px; object-fit: contain;" onerror="this.style.display='none'">`;
-                                                    }).join('') : 
-                                                    '<span style="font-size: 0.85rem; color: #999;">なし</span>'
-                                                }
+                                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                                                <img src="assets/rules/ルール_ガチホコ.png" style="width: 24px; height: 24px; object-fit: contain;">
+                                                <span style="font-size: 0.85rem;">${caster.xp_hoko || '-'}</span>
                                             </div>
-                                        </div>
-                                        <div class="caster-card-details" style="display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e0e0e0;">
-                                            <div style="margin-bottom: 12px;">
-                                                <div style="font-weight: 600; font-size: 0.9rem; color: var(--c-primary-dark); margin-bottom: 8px;">各ルールの最高XP</div>
-                                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
-                                                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
-                                                        <img src="assets/rules/ルール_ガチエリア.png" style="width: 24px; height: 24px; object-fit: contain;">
-                                                        <span style="font-size: 0.85rem;">${caster.xp_area || '-'}</span>
-                                                    </div>
-                                                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
-                                                        <img src="assets/rules/ルール_ガチヤグラ.png" style="width: 24px; height: 24px; object-fit: contain;">
-                                                        <span style="font-size: 0.85rem;">${caster.xp_yagura || '-'}</span>
-                                                    </div>
-                                                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
-                                                        <img src="assets/rules/ルール_ガチホコ.png" style="width: 24px; height: 24px; object-fit: contain;">
-                                                        <span style="font-size: 0.85rem;">${caster.xp_hoko || '-'}</span>
-                                                    </div>
-                                                    <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
-                                                        <img src="assets/rules/ルール_ガチアサリ.png" style="width: 24px; height: 24px; object-fit: contain;">
-                                                        <span style="font-size: 0.85rem;">${caster.xp_asari || '-'}</span>
-                                                    </div>
-                                                </div>
+                                            <div style="display: flex; align-items: center; gap: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+                                                <img src="assets/rules/ルール_ガチアサリ.png" style="width: 24px; height: 24px; object-fit: contain;">
+                                                <span style="font-size: 0.85rem;">${caster.xp_asari || '-'}</span>
                                             </div>
-                                            ${caster.youtube_account_id ? `
-                                            <div style="margin-bottom: 12px;">
-                                                <div style="font-weight: 600; font-size: 0.9rem; color: var(--c-primary-dark); margin-bottom: 8px;">YouTubeチャンネル</div>
-                                                <a href="https://www.youtube.com/@${escapeHtml(caster.youtube_account_id)}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: #c4302b; text-decoration: none; font-size: 0.85rem;">
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                                                    </svg>
-                                                    @${escapeHtml(caster.youtube_account_id)}
-                                                </a>
-                                            </div>
-                                            ` : ''}
-                                        </div>
-                                        <div class="admin-item-actions" style="display: flex; gap: 8px; margin-top: 12px;" onclick="event.stopPropagation()">
-                                            <button onclick="window.editCaster('${caster.id}')" class="btn-action edit" style="flex: 1;">編集</button>
-                                            <button onclick="window.deleteCasterAccount('${caster.id}')" class="btn-action delete">削除</button>
                                         </div>
                                     </div>
-                                `;
-                            }).join('')}
-                        </div>
-                    </div>
+                                    ${caster.youtube_account_id ? `
+                                    <div style="margin-bottom: 12px;">
+                                        <div style="font-weight: 600; font-size: 0.9rem; color: var(--c-primary-dark); margin-bottom: 8px;">YouTubeチャンネル</div>
+                                        <a href="https://www.youtube.com/@${escapeHtml(caster.youtube_account_id)}" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: #c4302b; text-decoration: none; font-size: 0.85rem;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                            </svg>
+                                            @${escapeHtml(caster.youtube_account_id)}
+                                        </a>
+                                    </div>
+                                    ` : ''}
+                                    ${caster.staff_notes ? `
+                                    <div style="margin-bottom: 12px;">
+                                        <div style="font-weight: 600; font-size: 0.9rem; color: var(--c-primary-dark); margin-bottom: 8px;">運営メモ</div>
+                                        <div style="padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; font-size: 0.85rem; color: #856404; white-space: pre-wrap;">${escapeHtml(caster.staff_notes)}</div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                                <div class="admin-item-actions" style="display: flex; gap: 8px; margin-top: 12px;" onclick="event.stopPropagation()">
+                                    <button onclick="window.editCaster('${caster.id}')" class="btn-action edit" style="flex: 1;">編集</button>
+                                    <button onclick="window.deleteCasterAccount('${caster.id}')" class="btn-action delete">削除</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
         </div>

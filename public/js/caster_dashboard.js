@@ -298,6 +298,15 @@ window.toggleWeaponGrid = function() {
 
 // イベントリスナーを設定
 function setupEventListeners() {
+    // サイドバーのタブリンク
+    document.querySelectorAll('.sidebar-link[data-tab]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tab = link.dataset.tab;
+            switchTab(tab);
+        });
+    });
+
     // アイコンタイプ変更
     const iconTypeRadios = document.querySelectorAll('input[name="iconType"]');
     iconTypeRadios.forEach(radio => {
@@ -322,6 +331,200 @@ function setupEventListeners() {
         e.preventDefault();
         await saveProfile();
     });
+}
+
+// タブを切り替え
+async function switchTab(tabName) {
+    // サイドバーのアクティブ状態を更新
+    document.querySelectorAll('.sidebar-link[data-tab]').forEach(link => {
+        if (link.dataset.tab === tabName) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
+        }
+    });
+
+    // タイトルを更新
+    const pageTitle = document.getElementById('pageTitle');
+    
+    // コンテンツエリアを更新
+    const contentArea = document.getElementById('contentArea');
+    
+    switch (tabName) {
+        case 'profile':
+            pageTitle.textContent = 'プロフィール設定';
+            // プロフィールタブの場合はページ全体をリロード
+            window.location.reload();
+            break;
+            
+        case 'history':
+            pageTitle.textContent = '参加履歴';
+            await renderParticipationHistory(contentArea);
+            break;
+            
+        default:
+            break;
+    }
+}
+
+// 参加履歴を表示
+async function renderParticipationHistory(container) {
+    if (!currentCaster || !currentCaster.tournament_history_extended) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🎙️</div>
+                <h3 style="color: var(--c-primary-dark); margin-bottom: 10px;">参加大会はまだありません</h3>
+                <p style="color: #666;">運営から大会への参加割り当てがあると、ここに表示されます。</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
+        // 大会データを取得
+        const client = await getSupabaseClient();
+        const { data: tournaments, error } = await client
+            .from('tournaments')
+            .select('*')
+            .in('id', currentCaster.tournament_history_extended.map(h => h.tournament_id))
+            .order('eventDate', { ascending: false });
+        
+        if (error) throw error;
+
+        // 参加した大会の数
+        const participationCount = tournaments.length;
+        
+        // 大会をステータスと日付でソート
+        const sortedTournaments = tournaments.sort((a, b) => {
+            // ステータス優先: ongoing, upcoming, open, closed
+            const statusOrder = { 'ongoing': 0, 'upcoming': 1, 'open': 2, 'closed': 3 };
+            const statusA = statusOrder[a.status] || 999;
+            const statusB = statusOrder[b.status] || 999;
+            
+            if (statusA !== statusB) {
+                return statusA - statusB;
+            }
+            
+            // 同じステータス内では日付順（新しいものを上に）
+            const dateA = a.eventDate ? new Date(a.eventDate) : new Date(0);
+            const dateB = b.eventDate ? new Date(b.eventDate) : new Date(0);
+            return dateB - dateA;
+        });
+
+        // 自分の役割を取得するヘルパー
+        const getMyRole = (tournamentId) => {
+            const historyItem = currentCaster.tournament_history_extended.find(h => h.tournament_id === tournamentId);
+            return historyItem ? historyItem.role : 'caster';
+        };
+
+        // ステータスラベルを取得
+        const getStatusLabel = (status) => {
+            const statusMap = {
+                'ongoing': '開催中',
+                'upcoming': '開催予定',
+                'open': 'エントリー受付中',
+                'closed': '終了'
+            };
+            return statusMap[status] || status;
+        };
+
+        container.innerHTML = `
+            <div style="max-width: 900px; margin: 0 auto;">
+                <!-- ヘッダーメッセージ -->
+                <div style="background: linear-gradient(135deg, rgba(30, 55, 153, 0.05) 0%, rgba(30, 55, 153, 0.1) 100%); border-radius: 12px; padding: 30px; margin-bottom: 30px; text-align: center;">
+                    <h2 style="font-size: 1.5rem; font-weight: 700; color: var(--c-primary-dark); margin-bottom: 12px;">
+                        ${currentCaster.name || 'あなた'}さん、大学杯配信にご協力頂きありがとうございます！
+                    </h2>
+                    <p style="font-size: 1.1rem; color: #666; margin-bottom: 8px;">
+                        これまでに<strong style="color: var(--c-primary); font-size: 1.3rem;"> ${participationCount} </strong>大会に参加されました
+                    </p>
+                </div>
+
+                <!-- タイムライン -->
+                <div style="position: relative; padding-left: 40px;">
+                    <!-- タイムラインの縦線 -->
+                    <div style="position: absolute; left: 20px; top: 0; bottom: 0; width: 2px; background: #e0e0e0;"></div>
+                    
+                    ${sortedTournaments.map((tournament, index) => {
+                        const role = getMyRole(tournament.id);
+                        const roleText = role === 'caster' ? '実況' : '解説';
+                        const roleColor = role === 'caster' ? '#1e3799' : '#27ae60';
+                        const statusLabel = getStatusLabel(tournament.status);
+                        const statusClass = tournament.status;
+                        const eventDate = tournament.eventDate ? new Date(tournament.eventDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '日時未定';
+                        
+                        // 他のスタッフ情報を取得
+                        const otherCasterName = tournament.caster?.name || '-';
+                        const commentatorName = tournament.commentator?.name || '-';
+                        
+                        return `
+                            <div style="position: relative; margin-bottom: 30px;">
+                                <!-- タイムラインのドット -->
+                                <div style="position: absolute; left: -29px; top: 12px; width: 18px; height: 18px; border-radius: 50%; background: ${roleColor}; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"></div>
+                                
+                                <!-- 大会カード -->
+                                <div class="admin-card" style="margin-left: 10px; transition: transform 0.2s, box-shadow 0.2s;" onmouseenter="this.style.transform='translateX(5px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';" onmouseleave="this.style.transform=''; this.style.boxShadow='';">
+                                    <div class="card-body" style="padding: 20px;">
+                                        <!-- ステータスバッジ -->
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                                            <span class="status-label ${statusClass}">${statusLabel}</span>
+                                            <span style="font-size: 0.9rem; padding: 4px 12px; background: ${roleColor}; color: white; border-radius: 12px; font-weight: 600;">${roleText}</span>
+                                        </div>
+                                        
+                                        <!-- 大会名 -->
+                                        <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--c-primary-dark); margin-bottom: 8px;">
+                                            ${tournament.name || tournament.title}
+                                        </h3>
+                                        
+                                        <!-- 開催日 -->
+                                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 16px; color: #666; font-size: 0.9rem;">
+                                            <span>📅</span>
+                                            <span>${eventDate}</span>
+                                        </div>
+                                        
+                                        <!-- スタッフ情報 -->
+                                        <div style="padding-top: 12px; border-top: 1px solid #e0e0e0;">
+                                            <div style="font-weight: 600; font-size: 0.85rem; color: #666; margin-bottom: 8px;">配信スタッフ</div>
+                                            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                                                ${role === 'caster' ? `
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span style="font-weight: 600; color: #1e3799;">🎙️ 実況:</span>
+                                                    <span>${currentCaster.name}</span>
+                                                </div>
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span style="font-weight: 600; color: #27ae60;">💬 解説:</span>
+                                                    <span>${commentatorName}</span>
+                                                </div>
+                                                ` : `
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span style="font-weight: 600; color: #1e3799;">🎙️ 実況:</span>
+                                                    <span>${otherCasterName}</span>
+                                                </div>
+                                                <div style="display: flex; align-items: center; gap: 6px;">
+                                                    <span style="font-weight: 600; color: #27ae60;">💬 解説:</span>
+                                                    <span>${currentCaster.name}</span>
+                                                </div>
+                                                `}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        console.error('Failed to load participation history:', err);
+        container.innerHTML = `
+            <div style="text-align: center; padding: 60px 20px;">
+                <div style="font-size: 3rem; margin-bottom: 20px;">⚠️</div>
+                <h3 style="color: var(--c-primary-dark); margin-bottom: 10px;">データの取得に失敗しました</h3>
+                <p style="color: #666;">${err.message}</p>
+            </div>
+        `;
+    }
 }
 
 // 武器をフィルタリング
