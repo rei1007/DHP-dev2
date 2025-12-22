@@ -405,9 +405,26 @@ async function renderParticipationHistory(container) {
                 return statusA - statusB;
             }
             
-            // 同じステータス内では日付順（新しいものを上に）
-            const dateA = a.eventDate ? new Date(a.eventDate) : new Date(0);
-            const dateB = b.eventDate ? new Date(b.eventDate) : new Date(0);
+            // 同じステータス内での日付ソート
+            const dateA = a.event_date ? new Date(a.event_date) : null;
+            const dateB = b.event_date ? new Date(b.event_date) : null;
+            
+            // 開催予定/エントリー受付中/開催中の場合
+            if (a.status !== 'closed') {
+                // 日時未定(null)を最前に
+                if (!dateA && dateB) return -1;
+                if (dateA && !dateB) return 1;
+                if (!dateA && !dateB) return b.id - a.id; // 両方未定ならID降順
+                
+                // 両方設定済みなら日時降順（新しい順）
+                return dateB - dateA;
+            }
+            
+            // 終了済みの場合も日時降順（新しい順）
+            if (!dateA && dateB) return 1;
+            if (dateA && !dateB) return -1;
+            if (!dateA && !dateB) return b.id - a.id;
+            
             return dateB - dateA;
         });
 
@@ -451,7 +468,7 @@ async function renderParticipationHistory(container) {
                         const roleColor = role === 'caster' ? '#1e3799' : '#27ae60';
                         const statusLabel = getStatusLabel(tournament.status);
                         const statusClass = tournament.status;
-                        const eventDate = tournament.eventDate ? new Date(tournament.eventDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '日時未定';
+                        const eventDate = tournament.event_date ? new Date(tournament.event_date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '日時未定';
                         
                         // 他のスタッフ情報を取得
                         const otherCasterName = tournament.caster?.name || '-';

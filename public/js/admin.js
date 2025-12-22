@@ -1041,7 +1041,7 @@ async function renderAccounts(container) {
                                     }
                                     <div class="admin-item-title" style="font-size: 1rem; font-weight: 600;">${escapeHtml(user.username || user.email)}</div>
                                 </div>
-                                <span class="badge ${user.role === 'admin' ? 'info' : 'warning'}" style="position: absolute; top: 10px; right: 10px;">${user.role === 'admin' ? '運営' : '保留中'}</span>
+                                <span style="position: absolute; top: 12px; right: 12px; padding: 6px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; ${user.role === 'admin' ? 'background: #27ae60; color: white;' : 'background: #f39c12; color: white;'}">${user.role === 'admin' ? '運営' : '未承認'}</span>
                             </div>
                             <div class="admin-item-meta" style="margin-bottom: 8px;">
                                 <span style="font-size: 0.85rem; color: #666;">🕒 登録日: ${new Date(user.created_at).toLocaleDateString('ja-JP')}</span>
