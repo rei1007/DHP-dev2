@@ -1029,14 +1029,15 @@ async function renderAccounts(container) {
                 <div class="admin-item-grid">
                     ${admins.map(user => {
                         // Discord avatar URLを取得
-                        const avatarUrl = user.discord_avatar_url || null;
+                        const avatarUrl = user.avatar_url || null;
+                        console.log('User:', user.username || user.email, 'Avatar URL:', avatarUrl);
                         
                         return `
                         <div class="admin-item-card" style="position: relative;">
                             <div class="admin-item-header" style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px;">
                                 <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
                                     ${avatarUrl ? 
-                                        `<img src="${escapeHtml(avatarUrl)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : 
+                                        `<img src="${escapeHtml(avatarUrl)}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="console.error('Failed to load image:', this.src); this.style.display='none';">` : 
                                         `<div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.2rem; flex-shrink: 0;">${escapeHtml((user.username || user.email).charAt(0).toUpperCase())}</div>`
                                     }
                                     <div class="admin-item-title" style="font-size: 1rem; font-weight: 600;">${escapeHtml(user.username || user.email)}</div>
@@ -1460,7 +1461,24 @@ async function openCasterModal(caster) {
             <div class="form-group box-light">
                 <label class="form-label">大学杯実況解説履歴</label>
                 <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; background: white;">
-                    ${tournaments.map(t => {
+                    ${tournaments.sort((a, b) => {
+                        const statusOrder = { 'ongoing': 0, 'upcoming': 1, 'open': 2, 'closed': 3 };
+                        const statusA = statusOrder[a.status] || 999;
+                        const statusB = statusOrder[b.status] || 999;
+                        if (statusA !== statusB) return statusA - statusB;
+                        const dateA = a.eventDate ? new Date(a.eventDate) : null;
+                        const dateB = b.eventDate ? new Date(b.eventDate) : null;
+                        if (a.status !== 'closed') {
+                            if (!dateA && dateB) return -1;
+                            if (dateA && !dateB) return 1;
+                            if (!dateA && !dateB) return b.id - a.id;
+                            return dateB - dateA;
+                        }
+                        if (!dateA && dateB) return 1;
+                        if (dateA && !dateB) return -1;
+                        if (!dateA && !dateB) return b.id - a.id;
+                        return dateB - dateA;
+                    }).map(t => {
                         // 既存の履歴から該当する大会を見つける
                         const historyItem = selectedHistory.find(h => h.tournament_id === t.id);
                         const isChecked = historyItem ? true : false;

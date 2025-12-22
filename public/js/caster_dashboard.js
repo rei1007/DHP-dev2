@@ -387,7 +387,7 @@ async function renderParticipationHistory(container) {
             .from('tournaments')
             .select('*')
             .in('id', currentCaster.tournament_history_extended.map(h => h.tournament_id))
-            .order('eventDate', { ascending: false });
+            .order('event_date', { ascending: false });
         
         if (error) throw error;
 
