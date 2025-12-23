@@ -340,7 +340,41 @@ function renderEntry(tournament) {
         statusMsg = 'この大会のエントリー受付は終了しました。';
     }
 
-    const entryUrl = tournament.supportUrl || '#';
+    // エントリー方法に応じてボタンの内容を変更
+    const entryMethod = tournament.entryMethod || 'dashboard'; // デフォルトはdashboard
+    let entryUrl = '#';
+    let buttonText = 'エントリーページへ';
+    let buttonIcon = '';
+    
+    if (entryMethod === 'google_form') {
+        // GoogleForms
+        entryUrl = tournament.entryFormUrl || '#';
+        buttonText = 'エントリーフォームへ';
+        // ドキュメント編集アイコン
+        buttonIcon = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+        `;
+    } else {
+        // Dashboard (今後実装予定)
+        entryUrl = '#'; // プレイスホルダー
+        buttonText = 'エントリーページへ';
+        // ユーザー追加アイコン（エントリー登録を表現）
+        buttonIcon = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="8.5" cy="7" r="4"></circle>
+                <line x1="20" y1="8" x2="20" y2="14"></line>
+                <line x1="23" y1="11" x2="17" y2="11"></line>
+            </svg>
+        `;
+    }
+
     const rulesUrl = tournament.rulesUrl || '#';
 
     container.innerHTML = `
@@ -358,7 +392,8 @@ function renderEntry(tournament) {
                 </div>
                 
                 <button id="entryButton" class="entry-btn-large" disabled>
-                    エントリーページへ進む
+                    ${buttonIcon}
+                    ${buttonText}
                 </button>
             </div>
         </div>
@@ -373,7 +408,11 @@ function renderEntry(tournament) {
         });
 
         button.addEventListener('click', () => {
-            if (entryUrl && entryUrl !== '#') {
+            if (entryMethod === 'dashboard') {
+                // ダッシュボードの場合（今後実装予定）
+                alert('大学杯ダッシュボードからのエントリー機能は現在開発中です。\n\n実装までお待ちください。');
+            } else if (entryUrl && entryUrl !== '#') {
+                // GoogleFormsの場合
                 window.open(entryUrl, '_blank');
             } else {
                 alert('エントリーURLが設定されていません');

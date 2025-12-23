@@ -437,6 +437,31 @@ function openTourModal(data = null) {
                         <input type="url" name="supportUrl" class="form-input" value="${v('supportUrl')}">
                     </div>
 
+                    <div class="form-group box-light">
+                        <label class="form-label">エントリー方法</label>
+                        <div style="margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 8px;">
+                                <input type="radio" name="entryMethod" value="dashboard" 
+                                    ${!v('entryMethod') || v('entryMethod') === 'dashboard' ? 'checked' : ''}
+                                    onchange="document.getElementById('entryFormUrlGroup').style.display = 'none';">
+                                <span>大学杯ダッシュボード（今後実装予定）</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="radio" name="entryMethod" value="google_form" 
+                                    ${v('entryMethod') === 'google_form' ? 'checked' : ''}
+                                    onchange="document.getElementById('entryFormUrlGroup').style.display = 'block';">
+                                <span>GoogleForms</span>
+                            </label>
+                        </div>
+                        
+                        <div id="entryFormUrlGroup" style="display: ${v('entryMethod') === 'google_form' ? 'block' : 'none'}; margin-top: 10px;">
+                            <label class="form-label">GoogleForms URL</label>
+                            <input type="url" id="entryFormUrlInput" name="entryFormUrl" class="form-input" 
+                                value="${v('entryFormUrl')}" 
+                                placeholder="https://forms.gle/...">
+                        </div>
+                    </div>
+
                     <h4 class="form-section-title">ルール＆ステージ</h4>
                     <div class="form-group">
                         <label class="form-label">採用ルール</label>
@@ -833,6 +858,8 @@ function openTourModal(data = null) {
             },
             rulesUrl: fd.get('rulesUrl'),
             supportUrl: fd.get('supportUrl'),
+            entryMethod: fd.get('entryMethod'),
+            entryFormUrl: fd.get('entryFormUrl'),
             rules: rulesSelected,
             stages: stagesSelected,
             entryType: fd.get('entryType'),
