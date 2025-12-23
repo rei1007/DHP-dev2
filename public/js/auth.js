@@ -264,7 +264,14 @@ async function ensureUserInDatabase(authUser) {
         if (roleError) {
             console.error('❌ Error fetching user role:', roleError);
             alert('ロール確認エラー: ' + roleError.message);
-            window.location.href = 'index.html';
+            
+            // ログアウト処理を実行してログインページに戻す
+            try {
+                await client.auth.signOut();
+            } catch (logoutErr) {
+                console.error('❌ Logout failed:', logoutErr);
+            }
+            window.location.href = 'login.html';
             throw new Error('Failed to verify user role');
         }
         
@@ -274,7 +281,18 @@ async function ensureUserInDatabase(authUser) {
         if (userRole.role !== 'admin') {
             console.warn('⚠️ Access denied: User does not have admin role');
             alert('運営ダッシュボードへのアクセス権限がありません。\n\n運営ロールが付与されるまでお待ちください。');
-            window.location.href = 'index.html';
+            
+            // ログアウト処理を実行してログインページに戻す
+            console.log('🔓 Logging out user due to insufficient permissions...');
+            try {
+                await client.auth.signOut();
+                window.location.href = 'login.html';
+            } catch (logoutErr) {
+                console.error('❌ Logout failed:', logoutErr);
+                // ログアウトに失敗した場合もログインページに戻す
+                window.location.href = 'login.html';
+            }
+            
             throw new Error('Unauthorized: User role is not admin');
         }
         

@@ -870,7 +870,64 @@ function openTourModal(data = null) {
         };
         
         // Save to Supabase
-        saveTournament(newTour).then(() => {
+        saveTournament(newTour).then(async (savedTournament) => {
+            // 大会保存後、実況・解説者のtournament_history_extendedを更新
+            try {
+                const allCasters = await getCasters();
+                
+                // 実況者の参加履歴を更新
+                if (newTour.caster && newTour.caster.name) {
+                    const casterRecord = allCasters.find(c => c.name === newTour.caster.name);
+                    if (casterRecord) {
+                        const history = casterRecord.tournament_history_extended || [];
+                        
+                        // 既存の履歴から同じ大会IDのエントリを削除
+                        const filteredHistory = history.filter(h => h.tournament_id !== savedTournament.id);
+                        
+                        // 新しいエントリを追加
+                        filteredHistory.push({
+                            tournament_id: savedTournament.id,
+                            role: 'caster'
+                        });
+                        
+                        // DBを更新
+                        await updateCaster(casterRecord.id, {
+                            tournament_history_extended: filteredHistory
+                        });
+                        
+                        console.log(`[Tournament Save] Updated caster history for ${casterRecord.name}`);
+                    }
+                }
+                
+                // 解説者の参加履歴を更新
+                if (newTour.commentator && newTour.commentator.name) {
+                    const commentatorRecord = allCasters.find(c => c.name === newTour.commentator.name);
+                    if (commentatorRecord) {
+                        const history = commentatorRecord.tournament_history_extended || [];
+                        
+                        // 既存の履歴から同じ大会IDのエントリを削除
+                        const filteredHistory = history.filter(h => h.tournament_id !== savedTournament.id);
+                        
+                        // 新しいエントリを追加
+                        filteredHistory.push({
+                            tournament_id: savedTournament.id,
+                            role: 'commentator'
+                        });
+                        
+                        // DBを更新
+                        await updateCaster(commentatorRecord.id, {
+                            tournament_history_extended: filteredHistory
+                        });
+                        
+                        console.log(`[Tournament Save] Updated commentator history for ${commentatorRecord.name}`);
+                    }
+                }
+            } catch (err) {
+                console.error('[Tournament Save] Failed to update caster history:', err);
+                // エラーがあっても大会保存は成功しているので、警告のみ表示
+                alert('大会は保存されましたが、実況解説者の参加履歴更新に失敗しました。');
+            }
+            
             modal.classList.add('u-hidden');
             loadTab('tournaments');
         }).catch(err => {
