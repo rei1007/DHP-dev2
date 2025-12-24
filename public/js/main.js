@@ -56,7 +56,7 @@ export async function checkOpenEntry() {
                     </div>
                     <h3 class="floating-entry-title">${escapeHtml(t.name)}</h3>
                     <p class="floating-entry-date">${escapeHtml(dateInfo)}</p>
-                    <a href="#latest" class="floating-entry-action" style="background: ${btnColor};">
+                    <a href="tournament_detail.html?id=${t.id}" class="floating-entry-action" style="background: ${btnColor};">
                         確認する
                     </a>
                 </div>

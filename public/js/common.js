@@ -586,3 +586,127 @@ export async function deleteCaster(casterId) {
     }
 }
 
+// ==========================================
+// Whitelist Management Functions (運営用)
+// ==========================================
+
+// Get all whitelist entries
+export async function getWhitelist() {
+    console.log('[getWhitelist] Called');
+    
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('admin_whitelist')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('[getWhitelist] Error:', error);
+            throw error;
+        }
+        
+        console.log('[getWhitelist] Fetched', data?.length || 0, 'entries');
+        return data || [];
+    } catch (e) {
+        console.error('[getWhitelist] Error:', e);
+        alert('ホワイトリスト取得エラー: ' + e.message);
+        return [];
+    }
+}
+
+// Add Discord ID to whitelist
+export async function addToWhitelist(discordId, note = '') {
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('admin_whitelist')
+            .insert([{
+                discord_id: discordId,
+                note: note,
+                created_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+        
+        if (error) {
+            console.error('[addToWhitelist] Error:', error);
+            throw error;
+        }
+        
+        console.log('[addToWhitelist] Added:', data);
+        return data;
+    } catch (e) {
+        console.error('[addToWhitelist] Error:', e);
+        alert('ホワイトリスト追加エラー: ' + e.message);
+        throw e;
+    }
+}
+
+// Remove Discord ID from whitelist
+export async function removeFromWhitelist(id) {
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { error } = await supabaseClient
+            .from('admin_whitelist')
+            .delete()
+            .eq('id', id);
+        
+        if (error) {
+            console.error('[removeFromWhitelist] Error:', error);
+            throw error;
+        }
+        
+        console.log('[removeFromWhitelist] Removed ID:', id);
+    } catch (e) {
+        console.error('[removeFromWhitelist] Error:', e);
+        alert('ホワイトリスト削除エラー: ' + e.message);
+        throw e;
+    }
+}
+
+// Check if a Discord ID is in whitelist
+export async function checkWhitelist(discordId) {
+    if (!supabaseClient) {
+        await initSupabaseClient();
+    }
+    if (!supabaseClient) {
+        throw new Error('Supabase client not initialized');
+    }
+    
+    try {
+        const { data, error } = await supabaseClient
+            .from('admin_whitelist')
+            .select('*')
+            .eq('discord_id', discordId)
+            .maybeSingle();
+        
+        if (error && error.code !== 'PGRST116') {
+            console.error('[checkWhitelist] Error:', error);
+            throw error;
+        }
+        
+        return !!data;
+    } catch (e) {
+        console.error('[checkWhitelist] Error:', e);
+        return false;
+    }
+}
