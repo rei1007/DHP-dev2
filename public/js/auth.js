@@ -165,11 +165,18 @@ async function ensureUserInDatabase(authUser) {
                          authUser.user_metadata?.picture || 
                          null;
         
+        // Discord IDを取得
+        const discordId = authUser.user_metadata?.provider_id || 
+                        authUser.user_metadata?.sub || 
+                        authUser.user_metadata?.iss?.split('/').pop() || 
+                        null;
+        
         console.log('👤 Ensuring user in database:', {
             id: authUser.id,
             email: authUser.email,
             username,
-            avatarUrl
+            avatarUrl,
+            discordId
         });
         
         // 既存のユーザーをチェック
@@ -196,6 +203,7 @@ async function ensureUserInDatabase(authUser) {
                 email: authUser.email,
                 username: username,
                 avatar_url: avatarUrl,
+                discord_id: discordId, // Discord IDも更新
                 updated_at: new Date().toISOString()
             };
             console.log('🔄 Update data:', updateData);
@@ -218,10 +226,26 @@ async function ensureUserInDatabase(authUser) {
             // 新規ユーザーを登録
             // ホワイトリストをチェックして、登録されている場合は自動的に運営ロールを付与
             console.log('➕ Creating new user...');
-            console.log('🔍 Checking whitelist for Discord ID:', authUser.id);
             
-            const isWhitelisted = await checkWhitelist(authUser.id);
-            console.log('🔍 Whitelist check result:', isWhitelisted);
+            // Discord IDを取得（user_metadataから）
+            const discordId = authUser.user_metadata?.provider_id || 
+                            authUser.user_metadata?.sub || 
+                            authUser.user_metadata?.iss?.split('/').pop() || 
+                            null;
+            
+            console.log('🔍 Full authUser object:', JSON.stringify(authUser, null, 2));
+            console.log('🔍 Extracted Discord ID:', discordId);
+            console.log('🔍 authUser.id (Supabase UUID):', authUser.id);
+            console.log('🔍 authUser.user_metadata:', authUser.user_metadata);
+            
+            let isWhitelisted = false;
+            if (discordId) {
+                console.log('🔍 Checking whitelist for Discord ID:', discordId);
+                isWhitelisted = await checkWhitelist(discordId);
+                console.log('🔍 Whitelist check result:', isWhitelisted);
+            } else {
+                console.warn('⚠️ Could not extract Discord ID from user metadata');
+            }
             
             // ホワイトリストに登録されている場合は admin、そうでない場合は pending
             const initialRole = isWhitelisted ? 'admin' : 'pending';
@@ -233,6 +257,7 @@ async function ensureUserInDatabase(authUser) {
                 username: username,
                 avatar_url: avatarUrl,
                 role: initialRole,
+                discord_id: discordId, // Discord IDも保存
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
