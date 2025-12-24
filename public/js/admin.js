@@ -1,7 +1,7 @@
 
 
 // Standalone Admin Logic
-import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml, getUsers, updateUserRole, deleteUser, getCasters, updateCaster, deleteCaster } from './common.js';
+import { getTournaments, saveTournament, deleteTournament, getNews, saveNews, deleteNews, escapeHtml, getUsers, updateUserRole, deleteUser, getCasters, updateCaster, deleteCaster, getWhitelist, addToWhitelist, removeFromWhitelist } from './common.js';
 import { requireAuth, logout, getCurrentUser } from './auth.js';
 import { WEAPONS } from './weapons-data.js';
 
@@ -1091,6 +1091,7 @@ function openNewsModal(data = null) {
 async function renderAccounts(container) {
     const admins = await getUsers(); // 運営アカウント
     const casters = await getCasters(); // 実況解説者アカウント
+    const whitelist = await getWhitelist(); // ホワイトリスト
     
     container.innerHTML = `
         <div style="margin-bottom: 30px;">
@@ -1107,10 +1108,14 @@ async function renderAccounts(container) {
                     style="padding: 12px 24px; border: none; background: transparent; font-weight: 600; font-size: 0.95rem; color: #999; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
                     実況解説者アカウント
                 </button>
+                <button class="account-tab" data-tab="whitelist" onclick="window.switchAccountTab('whitelist')" 
+                    style="padding: 12px 24px; border: none; background: transparent; font-weight: 600; font-size: 0.95rem; color: #999; border-bottom: 3px solid transparent; cursor: pointer; transition: all 0.2s; margin-bottom: -2px;">
+                    ホワイトリスト
+                </button>
             </div>
             
             <div id="adminsTab" class="tab-pane active" style="display: block;">
-                <div class="admin-item-grid">
+                <div class="admin-item-grid;">
                     ${admins.map(user => {
                         // Discord avatar URLを取得
                         const avatarUrl = user.avatar_url || null;
@@ -1221,6 +1226,48 @@ async function renderAccounts(container) {
                     }).join('')}
                 </div>
             </div>
+            
+            <div id="whitelistTab" class="tab-pane" style="display: none;">
+                <div style="margin-bottom: 20px; padding: 16px; background: #e8f4f8; border-left: 4px solid #1e3799; border-radius: 6px;">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin: 0 0 8px; color: var(--c-primary-dark);">ホワイトリストについて</h3>
+                    <p style="font-size: 0.85rem; margin: 0; color: #666; line-height: 1.6;">
+                        ホワイトリストに登録されているDiscord IDのアカウントが新規ログインした場合、自動的に運営ロールが付与されます。<br>
+                        登録には正確な<strong>Discord ID</strong>（数字のID）を使用してください。
+                    </p>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <button onclick="window.openAddWhitelistModal()" class="btn-primary" style="font-size: 0.9rem; padding: 10px 24px; border-radius: 100px; cursor: pointer; background: #1e3799; color: #fff; border: none; box-shadow: 0 4px 10px rgba(30,55,153,0.3);">
+                        ＋ Discord IDを追加
+                    </button>
+                </div>
+                
+                <div class="admin-item-grid;">
+                    ${whitelist.map(entry => {
+                        return `
+                        <div class="admin-item-card">
+                            <div class="admin-item-header" style="margin-bottom: 12px;">
+                                <div class="admin-item-title" style="font-size: 1rem; font-weight: 600; font-family: monospace;">
+                                    ${escapeHtml(entry.discord_id)}
+                                </div>
+                            </div>
+                            ${entry.note ? `
+                            <div class="admin-item-meta" style="margin-bottom: 8px;">
+                                <span style="font-size: 0.85rem; color: #666;">📝 ${escapeHtml(entry.note)}</span>
+                            </div>
+                            ` : ''}
+                            <div class="admin-item-meta" style="margin-bottom: 12px;">
+                                <span style="font-size: 0.85rem; color: #666;">🕒 登録日: ${new Date(entry.created_at).toLocaleDateString('ja-JP')}</span>
+                            </div>
+                            <div class="admin-item-actions" style="display: flex; gap: 8px; margin-top: 12px;">
+                                <button onclick="window.removeWhitelist('${entry.id}')" class="btn-action delete" style="flex: 1;">削除</button>
+                            </div>
+                        </div>
+                        `;
+                    }).join('')}
+                    ${whitelist.length === 0 ? '<div style="padding: 20px; text-align: center; color: #999;">ホワイトリストに登録されているDiscord IDはありません</div>' : ''}
+                </div>
+            </div>
         </div>
     `;
 }
@@ -1250,6 +1297,7 @@ window.switchAccountTab = function(tabName) {
     // タブコンテンツの表示/非表示を切り替え
     document.getElementById('adminsTab').style.display = tabName === 'admins' ? 'block' : 'none';
     document.getElementById('castersTab').style.display = tabName === 'casters' ? 'block' : 'none';
+    document.getElementById('whitelistTab').style.display = tabName === 'whitelist' ? 'block' : 'none';
 };
 
 // 実況解説者カードの展開/折りたたみ
@@ -1891,3 +1939,77 @@ async function openCasterModal(caster) {
         });
     }
 }
+
+// ==========================================
+// Whitelist Management Functions
+// ==========================================
+
+//ホワイトリストにDiscord IDを追加するモーダルを開く
+window.openAddWhitelistModal = function() {
+    const modal = document.getElementById('adminUserModal');
+    const container = document.getElementById('adminUserFormContainer');
+    
+    container.innerHTML = `
+        <form id="formAddWhitelist">
+            <div class="form-group">
+                <label class="form-label">Discord ID</label>
+                <input type="text" name="discord_id" class="form-input" placeholder="例: 123456789012345678" required pattern="[0-9]{17,19}" title="17-19桁の数字を入力してください">
+                <div style="font-size: 0.85rem; color: #666; margin-top: 8px;">
+                    Discord IDは数字のみで構成される17-19桁のIDです
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">メモ（任意）</label>
+                <input type="text" name="note" class="form-input" placeholder="例: 追加申請者、理由など">
+            </div>
+            
+            <div class="modal-actions">
+                <button type="submit" class="btn-primary" style="background:#1e3799; color:#fff; padding:10px 40px; border-radius:100px; font-weight:bold;">追加</button>
+            </div>
+        </form>
+    `;
+    
+    modal.classList.remove('u-hidden');
+    
+    // モーダルクローズイベント
+    const closeBtn = document.getElementById('closeAdminUserModal');
+    closeBtn.onclick = () => modal.classList.add('u-hidden');
+    
+    // フォーム送信
+    const form = document.getElementById('formAddWhitelist');
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const discordId = fd.get('discord_id');
+        const note = fd.get('note') || '';
+        
+        if (!confirm(`Discord ID「${discordId}」をホワイトリストに追加しますか？`)) {
+            return;
+        }
+        
+        try {
+            await addToWhitelist(discordId, note);
+            alert('ホワイトリストに追加しました');
+            modal.classList.add('u-hidden');
+            await loadTab('accounts');
+        } catch (err) {
+            console.error('Failed to add to whitelist:', err);
+            alert('ホワイトリスト追加に失敗しました: ' + err.message);
+        }
+    };
+};
+
+// ホワイトリストからDiscord IDを削除
+window.removeWhitelist = async (id) => {
+    if (!confirm('このDiscord IDをホワイトリストから削除しますか？')) return;
+    
+    try {
+        await removeFromWhitelist(id);
+        alert('ホワイトリストから削除しました');
+        await loadTab('accounts');
+    } catch (err) {
+        console.error('Failed to remove from whitelist:', err);
+        alert('ホワイトリスト削除に失敗しました: ' + err.message);
+    }
+};

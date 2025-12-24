@@ -2,7 +2,7 @@
 // 認証管理モジュール (Discord OAuth)
 // ==========================================
 
-import { initSupabaseClient } from './common.js';
+import { initSupabaseClient, checkWhitelist } from './common.js';
 
 let supabaseClient = null;
 
@@ -215,14 +215,24 @@ async function ensureUserInDatabase(authUser) {
             
             console.log('✅ User updated successfully:', updateResult);
         } else {
-            // 新規ユーザーを登録（デフォルトロール: pending）
-            console.log('➕ Creating new user with pending role...');
+            // 新規ユーザーを登録
+            // ホワイトリストをチェックして、登録されている場合は自動的に運営ロールを付与
+            console.log('➕ Creating new user...');
+            console.log('🔍 Checking whitelist for Discord ID:', authUser.id);
+            
+            const isWhitelisted = await checkWhitelist(authUser.id);
+            console.log('🔍 Whitelist check result:', isWhitelisted);
+            
+            // ホワイトリストに登録されている場合は admin、そうでない場合は pending
+            const initialRole = isWhitelisted ? 'admin' : 'pending';
+            console.log(`➕ Creating new user with ${initialRole} role...`);
+            
             const insertData = {
                 id: authUser.id,
                 email: authUser.email,
                 username: username,
                 avatar_url: avatarUrl,
-                role: 'pending',
+                role: initialRole,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             };
@@ -245,6 +255,11 @@ async function ensureUserInDatabase(authUser) {
             }
             
             console.log('✅ New user created successfully:', insertResult);
+            
+            // ホワイトリストに登録されている場合はメッセージを表示
+            if (isWhitelisted) {
+                console.log('✅ User is whitelisted. Admin role granted automatically.');
+            }
         }
         
         console.log('🔧 [ensureUserInDatabase] Completed successfully');
